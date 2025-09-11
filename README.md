@@ -10,3 +10,7 @@ Um jogo que se passa em duas realidades paralelas, presente e passado. O persona
 Assim que morrer ou em partes específicas do jogo, você terá a opção de lembrar (voltar para o passado do personagem) ou acordar (ir para o presente). A base do mapa dos dois mundos é o mesmo tendo apenas diferenças de design e poderes (no caso dos inimigos)
 
 ## Telas
+
+<img src="./pixil-frame-0.png" alt="texto alternativo" width="500">
+<img src="./pixil-frame-0 (1).png" alt="texto alternativo" width="500">
+<img src="./pixil-frame-0 (3).png" alt="texto alternativo" width="500">
