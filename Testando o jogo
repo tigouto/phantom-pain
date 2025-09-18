@@ -10,14 +10,21 @@ int main (int argc, char* args[])
                          SDL_WINDOWPOS_UNDEFINED,
                          0, 0,
                          SDL_WINDOW_FULLSCREEN_DESKTOP);
-    SDL_Renderer* ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED);
+    SDL_Renderer* ren = SDL_CreateRenderer(win, -1, 0);
+	
+	SDL_EventState(SDL_MOUSEMOTION, SDL_IGNORE);
+	SDL_EventState(SDL_MOUSEBUTTONDOWN, SDL_IGNORE);
+	SDL_EventState(SDL_MOUSEBUTTONUP, SDL_IGNORE);
 	
     int largura, altura;
     SDL_GetWindowSize(win, &largura, &altura);
 
     /* EXECUÇÃO */
     SDL_Rect player = { largura/5, altura - 150, 25, 50 };
-
+    
+    SDL_Rect terra = { 0, altura-50, largura, 50 };
+    SDL_Rect grama = { 0, altura-100, largura, 50 };
+    
     SDL_Rect n1 = { largura/5,  altura/8,   100,50 };
     SDL_Rect n2 = { largura/3,  altura/12,  100,50 };
     SDL_Rect n3 = { largura/2,  altura/6,   100,50 };
@@ -34,20 +41,30 @@ int main (int argc, char* args[])
     int gravidade = 1;
     int puloInicial = -18;
     int noChao = 1;
+    
+    int numPlataformas = 1;
+    SDL_Rect plataformas[1] = {
+        { 200, altura-200, 150,20 }
+	};
 
     while(!SDL_QuitRequested()){
-    
-            SDL_SetRenderDrawColor(ren, 0xbb,0xf3,0xf9,0x00); // dia
-            SDL_RenderClear(ren);
+    	
+    	//Céu
+        SDL_SetRenderDrawColor(ren, 0xbb,0xf3,0xf9,0x00);
+        SDL_RenderClear(ren);
         
         // Terra e grama
         SDL_SetRenderDrawColor(ren, 0xd0,0x9d,0x6a,0x00);
-        SDL_Rect terra = { 0, altura-50, largura, 50 };
         SDL_RenderFillRect(ren, &terra);
 
         SDL_SetRenderDrawColor(ren, 0x05,0xee,0x07,0x00);
-        SDL_Rect grama = { 0, altura-100, largura, 50 };
         SDL_RenderFillRect(ren, &grama);
+        
+        // Plataformas
+        SDL_SetRenderDrawColor(ren, 0x80,0x80,0x80,0x00);
+        for (int i=0; i<numPlataformas; i++) {
+            SDL_RenderFillRect(ren, &plataformas[i]);
+        }
 
         // Sol 
         SDL_SetRenderDrawColor(ren, 0xf3,0xf0,0x63,0x00);
@@ -112,6 +129,25 @@ int main (int argc, char* args[])
         	vely = 0;
         	noChao = 1;
 		}
+		
+		// Base player
+		SDL_Rect pe = player;
+		pe.y = player.y;
+		pe.h = 1;
+		
+		for (int i=0; i<numPlataformas; i++) {
+            SDL_Rect plat = plataformas[i];
+            
+			if(pe.y >= plat.y &&
+			 pe.y <= plat.y + 10 && 
+			 player.x + player.w > plat.x &&
+			 player.x < plat.x + plat.w){
+			 	player.y = plat.y - player.h;
+			 	vely = 0;
+			 	noChao = 1;
+			 }
+		}
+		
     }
 
     SDL_DestroyRenderer(ren);
