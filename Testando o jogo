@@ -1,0 +1,120 @@
+#include <SDL2/SDL.h>
+#include <assert.h>
+
+int main (int argc, char* args[])
+{
+    /* INICIALIZAÇÃO */
+    SDL_Init(SDL_INIT_EVERYTHING);
+    SDL_Window* win = SDL_CreateWindow("Game v0.1",
+                         SDL_WINDOWPOS_UNDEFINED,
+                         SDL_WINDOWPOS_UNDEFINED,
+                         0, 0,
+                         SDL_WINDOW_FULLSCREEN_DESKTOP);
+    SDL_Renderer* ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED);
+	
+    int largura, altura;
+    SDL_GetWindowSize(win, &largura, &altura);
+
+    /* EXECUÇÃO */
+    SDL_Rect player = { largura/5, altura - 150, 25, 50 };
+
+    SDL_Rect n1 = { largura/5,  altura/8,   100,50 };
+    SDL_Rect n2 = { largura/3,  altura/12,  100,50 };
+    SDL_Rect n3 = { largura/2,  altura/6,   100,50 };
+    SDL_Rect n4 = { 2*largura/3,altura/8,   100,50 };
+    SDL_Rect n5 = { 5*largura/6,altura/12,  100,50 };
+
+    SDL_Rect sol = { -100, altura/8, 100,100 };
+    SDL_Rect lua = { -100, altura/8, 100,100 };
+
+    SDL_Event evt;
+    int espera = 16;
+    
+    int vely = 0;
+    int gravidade = 1;
+    int puloInicial = -18;
+    int noChao = 1;
+
+    while(!SDL_QuitRequested()){
+    
+            SDL_SetRenderDrawColor(ren, 0xbb,0xf3,0xf9,0x00); // dia
+            SDL_RenderClear(ren);
+        
+        // Terra e grama
+        SDL_SetRenderDrawColor(ren, 0xd0,0x9d,0x6a,0x00);
+        SDL_Rect terra = { 0, altura-50, largura, 50 };
+        SDL_RenderFillRect(ren, &terra);
+
+        SDL_SetRenderDrawColor(ren, 0x05,0xee,0x07,0x00);
+        SDL_Rect grama = { 0, altura-100, largura, 50 };
+        SDL_RenderFillRect(ren, &grama);
+
+        // Sol 
+        SDL_SetRenderDrawColor(ren, 0xf3,0xf0,0x63,0x00);
+        SDL_RenderFillRect(ren, &sol);
+
+        // Nuvens
+        SDL_SetRenderDrawColor(ren, 0xff,0xff,0xff,0x00);
+        SDL_RenderFillRect(ren, &n1);
+        SDL_RenderFillRect(ren, &n2);
+        SDL_RenderFillRect(ren, &n3);
+        SDL_RenderFillRect(ren, &n4);
+        SDL_RenderFillRect(ren, &n5);
+
+        // Player
+        SDL_SetRenderDrawColor(ren, 0x00,0x00,0x00,0x00);
+        SDL_RenderFillRect(ren, &player);
+
+        SDL_RenderPresent(ren);
+
+        // Movimento das nuvens e sol
+        n1.x += 2;
+        n2.x += 2;
+        n3.x += 2;
+        n4.x += 2;
+        n5.x += 2;
+        sol.x += 1;
+
+        if (n1.x >= largura) n1.x = -50;
+        if (n2.x >= largura) n2.x = -50;
+        if (n3.x >= largura) n3.x = -50;
+        if (n4.x >= largura) n4.x = -50;
+        if (n5.x >= largura) n5.x = -50;
+
+        if (sol.x >= largura){
+            sol.x = -100;
+        }
+
+        //pulo
+        int isevt = SDL_WaitEventTimeout(&evt, espera);
+        if (isevt && evt.type == SDL_KEYDOWN) {
+            if (evt.key.keysym.sym == SDLK_UP && noChao) {
+                vely = puloInicial;
+                noChao = 0;
+            }
+        }
+        // Andando no pulo
+        const Uint8 *keys = SDL_GetKeyboardState(NULL);
+        if (keys[SDL_SCANCODE_LEFT]) {
+        	player.x -= 10;
+		}
+		if (keys[SDL_SCANCODE_RIGHT]) {
+        	player.x += 10;
+		}
+        
+        // Gravidade
+        player.y += vely;
+        vely += gravidade;
+        
+        int chao = altura - 150;
+        if(player.y >= chao){
+        	player.y = chao;
+        	vely = 0;
+        	noChao = 1;
+		}
+    }
+
+    SDL_DestroyRenderer(ren);
+    SDL_DestroyWindow(win);
+    SDL_Quit();
+}
