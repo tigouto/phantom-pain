@@ -12,11 +12,17 @@ int main (int argc, char* args[])
                          SDL_WINDOWPOS_UNDEFINED,
                          0, 0,
                          SDL_WINDOW_FULLSCREEN_DESKTOP);
-    SDL_Renderer* ren = SDL_CreateRenderer(win, -1, 0);
-    SDL_Texture* parad = IMG_LoadTexture(ren, "parado.png");
+    SDL_Renderer* ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED);
+    
     SDL_Texture* sprites = IMG_LoadTexture(ren, "sprites.png");
     SDL_Texture* fundo = IMG_LoadTexture(ren, "backgound.png");
-    assert(parad && sprites && fundo);
+    SDL_Texture* hud = IMG_LoadTexture(ren, "hud.png");
+    SDL_Texture* lua = IMG_LoadTexture(ren, "lua.png");
+    SDL_Texture* parafu = IMG_LoadTexture(ren, "parafu.png");
+    SDL_Texture* parafr = IMG_LoadTexture(ren, "parafr.png");
+    SDL_Texture* ponte = IMG_LoadTexture(ren, "ponte.png");
+    
+    assert(ponte && sprites && fundo && hud && lua && parafu && parafr);
 
 	SDL_EventState(SDL_MOUSEMOTION, SDL_IGNORE);
 	SDL_EventState(SDL_MOUSEBUTTONDOWN, SDL_IGNORE);
@@ -26,13 +32,19 @@ int main (int argc, char* args[])
     SDL_GetWindowSize(win, &largura, &altura);
 
     /* EXECUÇÃO */
+    
     SDL_Rect mapa = { 0, 0 , largura, altura };
-    SDL_Rect player = { largura/5, altura - 150, 110, 100 };
-    SDL_Rect f;
+    SDL_Rect moon = { 0, 0 , largura, altura };
+    SDL_Rect parafun = { 0, 0 , largura, altura };
+    SDL_Rect parafre = { 0, 0 , largura, altura };
+    SDL_Rect vida = { 0, 0 , largura/4, altura/7 };
+    SDL_Rect player = { largura/5, (altura - ((15*altura)/100)/3) - 95, 110, 100 };
+    SDL_Rect ponteR = { 0, altura-((15*altura)/100), largura, (15*altura)/100};
+    SDL_Rect chaoR = {0, (altura-((15*altura)/100)/3)+5, largura, ((15*altura)/100)/3};
+	
+	SDL_Rect f;
 
-    SDL_Event evt;
     int espera = 16;
-
     int vely = 0;
     int gravidade = 1;
     int puloInicial = -18;
@@ -40,12 +52,14 @@ int main (int argc, char* args[])
     
     int direita = 1;
 	int esquerda = -1;
-	int frameAtual = 0;
-	int parado = 0;
+	int frameAtual = direita;
 	Uint32 ultimoFrameTroca = 0;
 	int intervaloFrame = 120;
 	int frameID = 0;
 	int frameIE = 0;
+	
+	int virando = 0;
+	int frameVirada = 0;
 
     int numPlataformas = 2;
     SDL_Rect plataformas[2] = {
@@ -58,14 +72,19 @@ while (!SDL_QuitRequested()) {
 
     // --- RENDERIZAÇÃO ---
     SDL_RenderCopy(ren, fundo ,NULL, &mapa);
+    SDL_RenderCopy(ren, lua ,NULL, &moon);
+    SDL_RenderCopy(ren, parafu ,NULL, &parafun);
+    SDL_RenderCopy(ren, parafr ,NULL, &parafre);
+	SDL_RenderCopy(ren, hud ,NULL, &vida);
 
-    SDL_SetRenderDrawColor(ren, 0x80,0x80,0x80,0x00);
+    //SDL_SetRenderDrawColor(ren, 0x80,0x80,0x80,0x00);
     for (int i=0; i<numPlataformas; i++) {
         SDL_RenderFillRect(ren, &plataformas[i]);
     }
 
 
     SDL_RenderCopy(ren, sprites, &f, &player);
+    SDL_RenderCopy(ren, ponte, NULL, &ponteR);
 
     SDL_RenderPresent(ren);
 
@@ -87,47 +106,58 @@ while (!SDL_QuitRequested()) {
         vely = puloInicial;
         noChao = 0;
     }
+    
+    int movendo = 0;
 
     // Movimento lateral
     if (keys[SDL_SCANCODE_LEFT]) {
-        player.x -= 10;
-		frameAtual = esquerda;
-		
-		if(agora - ultimoFrameTroca > intervaloFrame){
-			ultimoFrameTroca = agora;
-			
-			frameIE++;
-			if(frameIE > 3) frameIE = 0;
-			
-			switch(frameIE){
-				case 0: f = (SDL_Rect){ 0,   588, 322, 294}; break;
-                case 1: f = (SDL_Rect){ 322, 588, 322, 294}; break;
-                case 2: f = (SDL_Rect){ 644, 588, 322, 294}; break;
-                case 3: f = (SDL_Rect){ 966, 588, 322, 294}; break;
-				
-			}
-		}
+        movendo = 1;
+        if (frameAtual == direita && !virando) { virando = 1; frameVirada = 0; ultimoFrameTroca = agora; }
+        	player.x -= 10;
+            if (virando == 1) {
+                if (agora - ultimoFrameTroca > intervaloFrame) {
+                    ultimoFrameTroca = agora;
+                    frameVirada++;
+                    if (frameVirada > 2) { virando = 0; frameIE = 0; frameAtual = esquerda; }
+                }
+                f = (SDL_Rect){ 322 * frameVirada, 294, 322, 294 }; // linha 2
+            } else {
+                frameAtual = esquerda;
+                if (agora - ultimoFrameTroca > intervaloFrame) {
+                    ultimoFrameTroca = agora;
+                    frameIE++;
+                    if (frameIE > 3) frameIE = 0;
+                }
+                f = (SDL_Rect){ 322 * frameIE, 588, 322, 294 }; // linha 3
+            }
     }
-    
     
     if (keys[SDL_SCANCODE_RIGHT]) {
+        movendo = 1;
+        if (frameAtual == esquerda && !virando) { virando = 2; frameVirada = 0; ultimoFrameTroca = agora; }
         player.x += 10;
-        frameAtual = direita;
-        
-    	if (agora - ultimoFrameTroca > intervaloFrame){
-    		ultimoFrameTroca = agora;
-    		
-    		frameID++;
-    		if(frameID > 3) frameID = 0;
-    		
-    		switch (frameID){
-    			case 0: f =(SDL_Rect){ 0, 0, 322, 294}; break;
-    			case 1: f =(SDL_Rect){ 322, 0, 322, 294}; break;
-    			case 2: f =(SDL_Rect){ 644, 0, 322, 294}; break;
-    			case 3: f =(SDL_Rect){ 966, 0, 322, 294}; break;
-			}
-	   }
+        if (virando == 2) {
+            if (agora - ultimoFrameTroca > intervaloFrame) {
+                ultimoFrameTroca = agora;
+                frameVirada++;
+                if (frameVirada > 2) { virando = 0; frameID = 0; frameAtual = direita; }
+            }
+            f = (SDL_Rect){ 322 * frameVirada, 882, 322, 294 }; // linha 4
+            } else {
+                frameAtual = direita;
+                if (agora - ultimoFrameTroca > intervaloFrame) {
+                    ultimoFrameTroca = agora;
+                    frameID++;
+                    if (frameID > 3) frameID = 0;
+                }
+            f = (SDL_Rect){ 322 * frameID, 0, 322, 294 }; // linha 1
+            }
     }
+    
+    if (!movendo && !virando){
+    	if(frameAtual == direita) f = (SDL_Rect){0,0,322,294};
+    	else if(frameAtual == esquerda) f = (SDL_Rect){0,588,322,294};
+	}
 
     // GRAVIDADE
     player.y += vely;
@@ -171,9 +201,12 @@ while (!SDL_QuitRequested()) {
         }
     }
 }
+	SDL_DestroyTexture(parafr);
+	SDL_DestroyTexture(parafu);
+	SDL_DestroyTexture(lua);
+	SDL_DestroyTexture(hud);
     SDL_DestroyTexture(fundo);
     SDL_DestroyTexture(sprites);
-    SDL_DestroyTexture(parad);
     SDL_DestroyRenderer(ren);
     SDL_DestroyWindow(win);
     SDL_Quit();
