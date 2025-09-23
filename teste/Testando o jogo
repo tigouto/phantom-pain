@@ -24,6 +24,7 @@ int main (int argc, char* args[])
     
     int w, h;
     SDL_GetWindowSize(win, &w, &h);
+    printf("largura: %d, altura: %d \n", w, h);
 
     SDL_EventState(SDL_MOUSEMOTION, SDL_IGNORE);
     SDL_EventState(SDL_MOUSEBUTTONDOWN, SDL_IGNORE);
@@ -34,7 +35,8 @@ int main (int argc, char* args[])
     SDL_Rect moon = { 0, 0 , w, h };
     SDL_Rect parafun = { 0, 0 , w, h };
     SDL_Rect parafre = { 0, 0 , w, h };
-    SDL_Rect vida = { 0, 0 , w/2, h/7 };
+    SDL_Rect vida = { 0, 0 , 510, 85 };
+    
     SDL_Rect player = { w/5, (h - ((15*h)/100)/3) - 100 +5, 110, 100 }; // já acima do chão invisível
     SDL_Rect ponteR = {0, h-((15*h)/100), w, (15*h)/100};
     
@@ -117,16 +119,18 @@ int main (int argc, char* args[])
             if (frameAtual == direita && !virando) { virando = 1; frameVirada = 0; ultimoFrameTroca = agora; }
             player.x -= 10;
             if (virando == 1) {
-                if (agora - ultimoFrameTroca > intervaloFrame) {
-                    ultimoFrameTroca = agora;
-                    
-                    frameVirada++;
-                    if (frameVirada > 3) { virando = 0; frameIE = 0; frameAtual = esquerda; }
-                    
-                }
-                f = (SDL_Rect){ 322 * frameVirada, 294, 322, 294 }; // linha 2
-                
-            } else {
+    if (agora - ultimoFrameTroca > intervaloFrame) {
+        ultimoFrameTroca = agora;
+        frameVirada++;
+        if (frameVirada > 2) {
+            virando = 0;
+            frameIE = 0;
+            frameAtual = esquerda;
+            f = (SDL_Rect){ 0, 588, 322, 294 }; // Reseta o frame para o primeiro da animação de parado à esquerda
+        }
+    }
+    f = (SDL_Rect){ 322 * frameVirada, 294, 322, 294 }; // linha 2
+} else {
                 frameAtual = esquerda;
                 if (agora - ultimoFrameTroca > intervaloFrame) {
                     ultimoFrameTroca = agora;
@@ -142,16 +146,19 @@ int main (int argc, char* args[])
             if (frameAtual == esquerda && !virando) { virando = 2; frameVirada = 0; ultimoFrameTroca = agora; }
             player.x += 10;
             if (virando == 2) {
-                if (agora - ultimoFrameTroca > intervaloFrame) {
-                    ultimoFrameTroca = agora;
-                    
-                    frameVirada++;
-                    if (frameVirada > 3) { virando = 0; frameID = 0; frameAtual = direita; }
-                    
-                }
-                f = (SDL_Rect){ 322 * frameVirada, 882, 322, 294 }; // linha 4
-                
-            } else {
+    if (agora - ultimoFrameTroca > intervaloFrame) {
+        ultimoFrameTroca = agora;
+        frameVirada++;
+        if (frameVirada > 2) {
+            virando = 0;
+            frameID = 0;
+            frameAtual = direita;
+            f = (SDL_Rect){ 0, 0, 322, 294 }; // Reseta o frame para o primeiro da animação de parado à direita
+        }
+    }
+    f = (SDL_Rect){ 322 * frameVirada, 882, 322, 294 }; // linha 4
+}
+ else {
                 frameAtual = direita;
                 if (agora - ultimoFrameTroca > intervaloFrame) {
                     ultimoFrameTroca = agora;
