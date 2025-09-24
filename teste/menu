@@ -1,0 +1,74 @@
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_image.h>
+#include <assert.h>
+
+int main (int argc, char* args[])
+{
+    /* INICIALIZAÇÃO */
+    SDL_Init(SDL_INIT_EVERYTHING);
+    IMG_Init(0);
+    SDL_Window* win = SDL_CreateWindow("Game v0.1",
+                         SDL_WINDOWPOS_UNDEFINED,
+                         SDL_WINDOWPOS_UNDEFINED,
+                         0, 0,
+                         SDL_WINDOW_FULLSCREEN_DESKTOP);
+	SDL_Renderer* ren = SDL_CreateRenderer(win, -1, 0);
+	
+	SDL_Texture* fundo = IMG_LoadTexture(ren, "bg-menu.png");
+	SDL_Texture* logo     = IMG_LoadTexture(ren, "pp-logo.png");
+    SDL_Texture* novo   = IMG_LoadTexture(ren, "novo jogo.png");
+    SDL_Texture* novoS   = IMG_LoadTexture(ren, "novo-jogo-select.png");
+    SDL_Texture* continuar     = IMG_LoadTexture(ren, "continuar.png");
+    SDL_Texture* sair  = IMG_LoadTexture(ren, "sair.png");
+    SDL_Texture* sairS  = IMG_LoadTexture(ren, "sair-select.png");
+    
+    assert(fundo && logo && novo && novoS && continuar && sair && sairS);
+    
+    int w, h;
+    SDL_GetWindowSize(win, &w, &h);
+
+    SDL_EventState(SDL_MOUSEMOTION, SDL_IGNORE);
+    SDL_EventState(SDL_MOUSEBUTTONDOWN, SDL_IGNORE);
+    SDL_EventState(SDL_MOUSEBUTTONUP, SDL_IGNORE);
+    
+    SDL_Rect mapa = {0,0,w,h};
+    SDL_Rect titulo = {w/3,10,w/3,h/2};
+    SDL_Rect novoJ = {w/3,h/2,w/3,h/6};
+    SDL_Rect continuarJ = {w/3,2*h/3,w/3,h/6};
+    SDL_Rect sairJ = {w/3,h-(h/6),w/3,h/6};
+    
+    
+    int rodando = 1;
+    
+    SDL_Event e;
+    
+    while(rodando){
+    	
+    	while (SDL_PollEvent(&e)) {
+        	if (e.type == SDL_QUIT) {
+            	rodando = 0;
+        	}
+    	}
+    	
+    	SDL_RenderCopy(ren, fundo ,NULL, &mapa);
+        SDL_RenderCopy(ren, logo ,NULL, &titulo);
+        SDL_RenderCopy(ren, novo ,NULL, &novoJ);
+        SDL_RenderCopy(ren, continuar ,NULL, &continuarJ);
+        SDL_RenderCopy(ren, sair ,NULL, &sairJ);
+        
+        SDL_RenderPresent(ren);
+    	
+	}
+    
+    SDL_DestroyTexture(sairS);
+    SDL_DestroyTexture(sair);
+    SDL_DestroyTexture(continuar);
+    SDL_DestroyTexture(novoS);
+    SDL_DestroyTexture(novo);
+    SDL_DestroyTexture(logo);
+    SDL_DestroyTexture(fundo);
+    SDL_DestroyRenderer(ren);
+    SDL_DestroyWindow(win);
+    SDL_Quit();
+}
+
