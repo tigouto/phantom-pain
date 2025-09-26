@@ -13,14 +13,13 @@ int main (int argc, char* args[])
                          0, 0,
                          SDL_WINDOW_FULLSCREEN_DESKTOP);
     SDL_Renderer* ren = SDL_CreateRenderer(win, -1, 0);
-    SDL_Texture* sprites = IMG_LoadTexture(ren, "sprites.png");
+    SDL_Texture* sprites = IMG_LoadTexture(ren, "ss.png");
     SDL_Texture* ponte = IMG_LoadTexture(ren, "ponte.png");
-    SDL_Texture* fundo = IMG_LoadTexture(ren, "backgound.png");
+    SDL_Texture* fundo = IMG_LoadTexture(ren, "bg+lua.png");
     SDL_Texture* hud = IMG_LoadTexture(ren, "hud.png");
-    SDL_Texture* lua = IMG_LoadTexture(ren, "lua.png");
-    SDL_Texture* parafu = IMG_LoadTexture(ren, "parafu.png");
-    SDL_Texture* parafr = IMG_LoadTexture(ren, "parafr.png");
-    assert(ponte && sprites && fundo && hud && lua && parafu && parafr);
+    SDL_Texture* parafu = IMG_LoadTexture(ren, "paralax fundo.png");
+    SDL_Texture* parafr = IMG_LoadTexture(ren, "paralax frente.png");
+    assert(ponte && sprites && fundo && hud && parafu && parafr);
     
     int w, h;
     SDL_GetWindowSize(win, &w, &h);
@@ -32,7 +31,6 @@ int main (int argc, char* args[])
 
     /* EXECUÇÃO */
     SDL_Rect mapa = { 0, 0 , w, h };
-    SDL_Rect moon = { 0, 0 , w, h };
     SDL_Rect parafun = { 0, 0 , w, h };
     SDL_Rect parafre = { 0, 0 , w, h };
     SDL_Rect vida = { 0, 0 , 510, 85 };
@@ -48,7 +46,8 @@ int main (int argc, char* args[])
         ((15*h)/100)/3
     };
 
-    SDL_Rect f = {0,0,322,294}; // frame inicial
+    // frame inicial (primeiro da linha 0, coluna 0)
+    SDL_Rect f = {0,0,230,210};
 
     int espera = 16;
     int vely = 0;
@@ -77,10 +76,9 @@ int main (int argc, char* args[])
     while (!SDL_QuitRequested()) {
         // --- RENDERIZAÇÃO ---
         SDL_RenderCopy(ren, fundo ,NULL, &mapa);
-        SDL_RenderCopy(ren, lua ,NULL, &moon);
         SDL_RenderCopy(ren, parafu ,NULL, &parafun);
         SDL_RenderCopy(ren, parafr ,NULL, &parafre);
-	SDL_RenderCopy(ren, hud ,NULL, &vida);
+        SDL_RenderCopy(ren, hud ,NULL, &vida);
         
         SDL_SetRenderDrawColor(ren, 0x80,0x80,0x80,0x00);
         for (int i=0; i<numPlataformas; i++) {
@@ -89,10 +87,6 @@ int main (int argc, char* args[])
 
         SDL_RenderCopy(ren, sprites, &f, &player);
         SDL_RenderCopy(ren , ponte ,NULL, &ponteR);
-
-        // (Opcional) debug chão invisível
-        // SDL_SetRenderDrawColor(ren, 255, 0, 0, 255);
-        // SDL_RenderDrawRect(ren, &chaoR);
 
         SDL_RenderPresent(ren);
 
@@ -113,66 +107,66 @@ int main (int argc, char* args[])
 
         int movendo = 0; // flag pra detectar se está andando
 
-        // Movimento lateral
+        // Movimento lateral ESQUERDA
         if (keys[SDL_SCANCODE_LEFT]) {
             movendo = 1;
             if (frameAtual == direita && !virando) { virando = 1; frameVirada = 0; ultimoFrameTroca = agora; }
-            player.x -= 10;
+            player.x -= 13;
             if (virando == 1) {
-    if (agora - ultimoFrameTroca > intervaloFrame) {
-        ultimoFrameTroca = agora;
-        frameVirada++;
-        if (frameVirada > 2) {
-            virando = 0;
-            frameIE = 0;
-            frameAtual = esquerda;
-            f = (SDL_Rect){ 0, 588, 322, 294 }; // Reseta o frame para o primeiro da animação de parado à esquerda
-        }
-    }
-    f = (SDL_Rect){ 322 * frameVirada, 294, 322, 294 }; // linha 2
-} else {
+                if (agora - ultimoFrameTroca > intervaloFrame) {
+                    ultimoFrameTroca = agora;
+                    frameVirada++;
+                    if (frameVirada > 2) {
+                        virando = 0;
+                        frameIE = 0;
+                        frameAtual = esquerda;
+                        f = (SDL_Rect){ 0, 210*2, 230, 210 }; // parado esquerda
+                    }
+                }
+                f = (SDL_Rect){ 230 * frameVirada, 210 * 1, 230, 210 }; // linha 2
+            } else {
                 frameAtual = esquerda;
                 if (agora - ultimoFrameTroca > intervaloFrame) {
                     ultimoFrameTroca = agora;
                     frameIE++;
                     if (frameIE > 3) frameIE = 0;
                 }
-                f = (SDL_Rect){ 322 * frameIE, 588, 322, 294 }; // linha 3
+                f = (SDL_Rect){ 230 * frameIE, 210 * 2, 230, 210 }; // linha 3
             }
         }
 
+        // Movimento lateral DIREITA
         if (keys[SDL_SCANCODE_RIGHT]) {
             movendo = 1;
             if (frameAtual == esquerda && !virando) { virando = 2; frameVirada = 0; ultimoFrameTroca = agora; }
-            player.x += 10;
+            player.x += 13;
             if (virando == 2) {
-    if (agora - ultimoFrameTroca > intervaloFrame) {
-        ultimoFrameTroca = agora;
-        frameVirada++;
-        if (frameVirada > 2) {
-            virando = 0;
-            frameID = 0;
-            frameAtual = direita;
-            f = (SDL_Rect){ 0, 0, 322, 294 }; // Reseta o frame para o primeiro da animação de parado à direita
-        }
-    }
-    f = (SDL_Rect){ 322 * frameVirada, 882, 322, 294 }; // linha 4
-}
- else {
+                if (agora - ultimoFrameTroca > intervaloFrame) {
+                    ultimoFrameTroca = agora;
+                    frameVirada++;
+                    if (frameVirada > 2) {
+                        virando = 0;
+                        frameID = 0;
+                        frameAtual = direita;
+                        f = (SDL_Rect){ 0, 0, 230, 210 }; // parado direita
+                    }
+                }
+                f = (SDL_Rect){ 230 * frameVirada, 210 * 3, 230, 210 }; // linha 4
+            } else {
                 frameAtual = direita;
                 if (agora - ultimoFrameTroca > intervaloFrame) {
                     ultimoFrameTroca = agora;
                     frameID++;
                     if (frameID > 3) frameID = 0;
                 }
-                f = (SDL_Rect){ 322 * frameID, 0, 322, 294 }; // linha 1
+                f = (SDL_Rect){ 230 * frameID, 210 * 0, 230, 210 }; // linha 1
             }
         }
 
         // Parado
         if (!movendo && !virando) {
-            if (frameAtual == direita) f = (SDL_Rect){0,0,322,294};
-            else if (frameAtual == esquerda) f = (SDL_Rect){0,588,322,294};
+            if (frameAtual == direita) f = (SDL_Rect){0, 0, 230, 210};
+            else if (frameAtual == esquerda) f = (SDL_Rect){0, 210*2, 230, 210};
         }
 
         // GRAVIDADE
