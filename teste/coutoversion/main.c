@@ -6,15 +6,34 @@
 #include <SDL2/SDL_image.h>
 #include <assert.h>
 
+void desenharParalax(SDL_Renderer* ren, SDL_Texture* tex, float fatorParalax, int cameraX, int posY) {
+    int texW, texH;
+    SDL_QueryTexture(tex, NULL, NULL, &texW, &texH);
+    
+    texW = texW*0.6;
+    texH = texH*0.6;
+
+    // Calcula deslocamento com paralax
+    int offsetX = -(int)(cameraX / fatorParalax) % texW;
+    if (offsetX > 0) offsetX -= texW;
+
+    // Repete a textura horizontalmente no tamanho original
+    for (int x = offsetX; x < 1920; x += texW) {  // 1920 = largura mínima da tela. Pode usar w se quiser
+        SDL_Rect dest = { x, posY, texW, texH };
+        SDL_RenderCopy(ren, tex, NULL, &dest);
+    }
+}
+
 void runGame(SDL_Window* win, SDL_Renderer* ren) {
-    // --- CARREGAMENTO DE TEXTURAS ---
     SDL_Texture* sprites = IMG_LoadTexture(ren, "./src/entidades/ss.png");
-    SDL_Texture* ponte = IMG_LoadTexture(ren, "./src/mapa/ponte.png");
-    SDL_Texture* fundo = IMG_LoadTexture(ren, "./src/mapa/bg+lua.png");
-    SDL_Texture* hud = IMG_LoadTexture(ren, "./src/mapa/hud.png");
-    SDL_Texture* parafu = IMG_LoadTexture(ren, "./src/mapa/paralax fundo.png");
-    SDL_Texture* parafr = IMG_LoadTexture(ren, "./src/mapa/paralax frente.png");
+    SDL_Texture* ponte   = IMG_LoadTexture(ren, "./src/mapa/ponte.png");
+    SDL_Texture* fundo   = IMG_LoadTexture(ren, "./src/mapa/bg+lua.png");
+    SDL_Texture* hud     = IMG_LoadTexture(ren, "./src/mapa/hud.png");
+    SDL_Texture* parafu  = IMG_LoadTexture(ren, "./src/mapa/paralax fundo.png");
+    SDL_Texture* parafr  = IMG_LoadTexture(ren, "./src/mapa/paralax frente.png");
     assert(sprites && ponte && fundo && hud && parafu && parafr);
+
+    SDL_ShowCursor(SDL_DISABLE);
 
     int w, h;
     SDL_GetWindowSize(win, &w, &h);
@@ -23,16 +42,12 @@ void runGame(SDL_Window* win, SDL_Renderer* ren) {
     SDL_EventState(SDL_MOUSEBUTTONDOWN, SDL_IGNORE);
     SDL_EventState(SDL_MOUSEBUTTONUP, SDL_IGNORE);
 
-    // --- RECTs ---
-    SDL_Rect mapa = {0, 0, w, h};
-    SDL_Rect parafun = {0, 0, w, h};
-    SDL_Rect parafre = {0, 0, w, h};
+    SDL_Rect camera = {0, 0, w, h};
     SDL_Rect vida = {0, 0, 384, 126};
-
     SDL_Rect player = { w/5, (h - ((15*h)/100)/3) - 100 + 5, 110, 100 };
-    SDL_Rect ponteR = {0, h - ((15*h)/100), w, (15*h)/100};
-    SDL_Rect chaoR = {0, (h - ((15*h)/100)/3) + 5, w, ((15*h)/100)/3};
-    SDL_Rect f = {0, 0, 230, 210};
+    SDL_Rect ponteR = {0, h - ((15*h)/100), 2000, (15*h)/100};
+    SDL_Rect chaoR  = {0, (h - ((15*h)/100)/3) + 5, 2000, ((15*h)/100)/3};
+    SDL_Rect f      = {0, 0, 230, 210};
 
     int numPlataformas = 2;
     SDL_Rect plataformas[2] = {
@@ -40,7 +55,7 @@ void runGame(SDL_Window* win, SDL_Renderer* ren) {
         {400, h-300, 150, 20}
     };
 
-    // --- VARIÁVEIS DO JOGADOR ---
+    // VARIÁVEIS DO JOGADOR
     int espera = 16;
     int vely = 0;
     int gravidade = 1;
@@ -50,103 +65,137 @@ void runGame(SDL_Window* win, SDL_Renderer* ren) {
     int direita = 1, esquerda = -1, frameAtual = direita;
     int virando = 0, frameVirada = 0;
     int frameID = 0, frameIE = 0;
-    Uint32 ultimoFrameTroca = 0;
+    int pulando = 0, framePulo = 0;
     int intervaloFrame = 120;
+    Uint32 ultimoFrameTroca = 0;
 
-    // --- LOOP PRINCIPAL DO JOGO ---
     while (!SDL_QuitRequested()) {
-        // RENDERIZAÇÃO
-        SDL_RenderCopy(ren, fundo, NULL, &mapa);
-        SDL_RenderCopy(ren, parafu, NULL, &parafun);
-        SDL_RenderCopy(ren, parafr, NULL, &parafre);
-        SDL_RenderCopy(ren, hud, NULL, &vida);
-
-        SDL_SetRenderDrawColor(ren, 0x80, 0x80, 0x80, 0x00);
-        for (int i = 0; i < numPlataformas; i++)
-            SDL_RenderFillRect(ren, &plataformas[i]);
-
-        SDL_RenderCopy(ren, sprites, &f, &player);
-        SDL_RenderCopy(ren, ponte, NULL, &ponteR);
-        SDL_RenderPresent(ren);
-
-        // EVENTOS
         SDL_Event evt;
         int isevt = SDL_WaitEventTimeout(&evt, espera);
         if (isevt && evt.type == SDL_QUIT) break;
 
-        // TECLADO
         const Uint8 *keys = SDL_GetKeyboardState(NULL);
         Uint32 agora = SDL_GetTicks();
+
+        int movendo = 0;
 
         // PULO
         if (keys[SDL_SCANCODE_Z] && noChao) {
             vely = puloInicial;
             noChao = 0;
+            pulando = 1;
+            framePulo = 0;
+            ultimoFrameTroca = agora;
         }
-
-        int movendo = 0;
 
         // MOVIMENTO ESQUERDA
         if (keys[SDL_SCANCODE_LEFT]) {
             movendo = 1;
-            if (frameAtual == direita && !virando) { virando = 1; frameVirada = 0; ultimoFrameTroca = agora; }
+            if (frameAtual == direita && !virando && noChao) {
+    virando = 1;
+    frameVirada = 0;
+    ultimoFrameTroca = agora;
+}
+
             player.x -= 13;
-            if (virando == 1) {
-                if (agora - ultimoFrameTroca > intervaloFrame) {
-                    ultimoFrameTroca = agora;
-                    frameVirada++;
-                    if (frameVirada > 2) { virando = 0; frameIE = 0; frameAtual = esquerda; f = (SDL_Rect){0,210*2,230,210}; }
+
+            if (noChao) {
+                if (virando == 1) {
+                    if (agora - ultimoFrameTroca > intervaloFrame) {
+                        ultimoFrameTroca = agora;
+                        frameVirada++;
+                        if (frameVirada > 2) { virando = 0; frameIE = 0; frameAtual = esquerda; }
+                    }
+                    f = (SDL_Rect){230 * frameVirada, 210 * 1, 230, 210};
+                } else {
+                    frameAtual = esquerda;
+                    if (agora - ultimoFrameTroca > intervaloFrame) {
+                        ultimoFrameTroca = agora;
+                        frameIE++;
+                        if (frameIE > 3) frameIE = 0;
+                    }
+                    f = (SDL_Rect){230 * frameIE, 210 * 2, 230, 210};
                 }
-                f = (SDL_Rect){230 * frameVirada, 210 * 1, 230, 210};
-            } else {
-                frameAtual = esquerda;
-                if (agora - ultimoFrameTroca > intervaloFrame) {
-                    ultimoFrameTroca = agora;
-                    frameIE++;
-                    if (frameIE > 3) frameIE = 0;
-                }
-                f = (SDL_Rect){230 * frameIE, 210 * 2, 230, 210};
             }
         }
 
         // MOVIMENTO DIREITA
         if (keys[SDL_SCANCODE_RIGHT]) {
             movendo = 1;
-            if (frameAtual == esquerda && !virando) { virando = 2; frameVirada = 0; ultimoFrameTroca = agora; }
+            if (frameAtual == esquerda && !virando && noChao) {
+    virando = 2;
+    frameVirada = 0;
+    ultimoFrameTroca = agora;
+}
+
             player.x += 13;
-            if (virando == 2) {
-                if (agora - ultimoFrameTroca > intervaloFrame) {
-                    ultimoFrameTroca = agora;
-                    frameVirada++;
-                    if (frameVirada > 2) { virando = 0; frameID = 0; frameAtual = direita; f = (SDL_Rect){0,0,230,210}; }
+
+            if (noChao) {
+                if (virando == 2) {
+                    if (agora - ultimoFrameTroca > intervaloFrame) {
+                        ultimoFrameTroca = agora;
+                        frameVirada++;
+                        if (frameVirada > 2) { virando = 0; frameID = 0; frameAtual = direita; }
+                    }
+                    f = (SDL_Rect){230 * frameVirada, 210 * 3, 230, 210};
+                } else {
+                    frameAtual = direita;
+                    if (agora - ultimoFrameTroca > intervaloFrame) {
+                        ultimoFrameTroca = agora;
+                        frameID++;
+                        if (frameID > 3) frameID = 0;
+                    }
+                    f = (SDL_Rect){230 * frameID, 0, 230, 210};
                 }
-                f = (SDL_Rect){230 * frameVirada, 210 * 3, 230, 210};
-            } else {
-                frameAtual = direita;
-                if (agora - ultimoFrameTroca > intervaloFrame) {
-                    ultimoFrameTroca = agora;
-                    frameID++;
-                    if (frameID > 3) frameID = 0;
-                }
-                f = (SDL_Rect){230 * frameID, 0, 230, 210};
             }
         }
 
-        // PARADO
-        if (!movendo && !virando) {
-            if (frameAtual == direita) f = (SDL_Rect){0,0,230,210};
-            else f = (SDL_Rect){0,210*2,230,210};
+        // Troca de direção no ar
+        if (!noChao && movendo) {
+            if (keys[SDL_SCANCODE_RIGHT] && frameAtual != direita) {
+                frameAtual = direita;
+            } else if (keys[SDL_SCANCODE_LEFT] && frameAtual != esquerda) {
+                frameAtual = esquerda;
+            }
         }
 
-        // GRAVIDADE
+        // ANIMAÇÃO DE PULO
+        if (!noChao) {
+            int linhaPulo = (frameAtual == direita) ? 4 : 5;
+            if (vely < 0) { // Subindo
+                if (agora - ultimoFrameTroca > intervaloFrame) {
+                    ultimoFrameTroca = agora;
+                    framePulo++;
+                    if (framePulo > 2) framePulo = 2;
+                }
+            } else { // Caindo
+                framePulo = 3;
+            }
+            f = (SDL_Rect){230 * framePulo, 210 * linhaPulo, 230, 210};
+        } else if (!movendo && !virando) {
+            // PARADO
+            if (frameAtual == direita) f = (SDL_Rect){0, 0, 230, 210};
+            else f = (SDL_Rect){0, 210*2, 230, 210};
+        }
+
+     if (!noChao && virando != 0) {
+            virando = 0;
+      }
+
+        // FÍSICA
         player.y += vely;
         vely += gravidade;
         noChao = 0;
 
-        // COLISÃO COM CHÃO
-        if (player.y + player.h >= chaoR.y) { player.y = chaoR.y - player.h; vely = 0; noChao = 1; }
+        // Colisão com chão
+        if (player.y + player.h >= chaoR.y) {
+            player.y = chaoR.y - player.h;
+            vely = 0;
+            noChao = 1;
+            pulando = 0;
+        }
 
-        // COLISÃO COM PLATAFORMAS (por cima)
+        // Colisão com plataformas
         for (int i = 0; i < numPlataformas; i++) {
             SDL_Rect plat = plataformas[i];
             if (vely >= 0 &&
@@ -157,10 +206,11 @@ void runGame(SDL_Window* win, SDL_Renderer* ren) {
                 player.y = plat.y - player.h;
                 vely = 0;
                 noChao = 1;
+                pulando = 0;
             }
         }
 
-        // COLISÃO POR BAIXO (bateu cabeça)
+        // Colisão por baixo
         for (int i = 0; i < numPlataformas; i++) {
             SDL_Rect plat = plataformas[i];
             if (vely < 0 &&
@@ -172,7 +222,46 @@ void runGame(SDL_Window* win, SDL_Renderer* ren) {
                 vely = 0;
             }
         }
-    } // fim do loop do jogo
+
+        // CÂMERA
+        camera.x = player.x + player.w / 2 - w / 2;
+        if (camera.x < 0) camera.x = 0;
+        if (camera.x > 4000 - w) camera.x = 4000 - w;
+
+        // RENDER
+        SDL_RenderClear(ren);
+
+        SDL_Rect fundoR = {(w-2080)/2, 0, 2080, 1040};
+        
+        
+
+        SDL_RenderCopy(ren, fundo, NULL, &fundoR);        
+        desenharParalax(ren, parafu, 3.0f, camera.x, 0); // fundo (lento)
+        desenharParalax(ren, parafr, 1.5f, camera.x, 0); // frente (mais rápido)
+
+
+
+        // Plataformas e ponte
+        SDL_Rect ponteScreen = ponteR;
+        ponteScreen.x -= camera.x;
+        SDL_RenderCopy(ren, ponte, NULL, &ponteScreen);
+
+        for (int i = 0; i < numPlataformas; i++) {
+            SDL_Rect platScreen = plataformas[i];
+            platScreen.x -= camera.x;
+            SDL_RenderFillRect(ren, &platScreen);
+        }
+
+        // Jogador
+        SDL_Rect playerScreen = player;
+        playerScreen.x -= camera.x;
+        SDL_RenderCopy(ren, sprites, &f, &playerScreen);
+
+        // HUD (fica fixa na tela)
+        SDL_RenderCopy(ren, hud, NULL, &vida);
+
+        SDL_RenderPresent(ren);
+    }
 
     // --- LIMPEZA ---
     SDL_DestroyTexture(fundo);
@@ -182,6 +271,7 @@ void runGame(SDL_Window* win, SDL_Renderer* ren) {
     SDL_DestroyTexture(parafr);
     SDL_DestroyTexture(hud);
 }
+
 
 int main(int argc, char* args[]) {
     SDL_Init(SDL_INIT_EVERYTHING);
