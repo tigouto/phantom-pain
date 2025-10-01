@@ -1,10 +1,7 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
 #include <assert.h>
-
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_image.h>
-#include <assert.h>
+#include <SDL2/SDL_mixer.h>
 
 void desenharParalax(SDL_Renderer* ren, SDL_Texture* tex, float fatorParalax, int cameraX, int posY) {
     int texW, texH;
@@ -276,9 +273,11 @@ void runGame(SDL_Window* win, SDL_Renderer* ren) {
 int main(int argc, char* args[]) {
     SDL_Init(SDL_INIT_EVERYTHING);
     IMG_Init(IMG_INIT_PNG);
-    SDL_Window* win = SDL_CreateWindow("Game v0.1", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
+    SDL_Window* win = SDL_CreateWindow("Phantom Pain v0.1", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
                                        0, 0, SDL_WINDOW_FULLSCREEN_DESKTOP);
     SDL_Renderer* ren = SDL_CreateRenderer(win, -1, 0);
+    
+    Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048);
 
     SDL_Texture* fundo      = IMG_LoadTexture(ren, "./src/menu/bg-menu.png");
     SDL_Texture* logo       = IMG_LoadTexture(ren, "./src/menu/pp-logo.png");
@@ -290,9 +289,7 @@ int main(int argc, char* args[]) {
     int w, h;
     SDL_GetWindowSize(win, &w, &h);
 
-    SDL_EventState(SDL_MOUSEMOTION, SDL_IGNORE);
-    SDL_EventState(SDL_MOUSEBUTTONDOWN, SDL_IGNORE);
-    SDL_EventState(SDL_MOUSEBUTTONUP, SDL_IGNORE);
+    
 
     int logoW = 640, logoH = 290;
     float escalaLogo = 1.2f;
@@ -319,40 +316,98 @@ int main(int argc, char* args[]) {
     int espera = 16;
     int selecionadoN = 1, selecionadoC = 0, selecionadoS = 0;
     int rodando = 1;
+    
+    Mix_Music* musica = Mix_LoadMUS("./src/msc/musica.ogg");
+  if (!musica) {
+    printf("Erro ao carregar música: %s\n", Mix_GetError());
+  }
+    Mix_PlayMusic(musica, -1);
+    while (rodando && !SDL_QuitRequested()) {
+    SDL_RenderClear(ren);
+    SDL_RenderCopy(ren, fundo ,NULL, NULL);
+    SDL_RenderCopy(ren, logo ,NULL, &titulo);
+    SDL_RenderCopy(ren, novo ,&n, &novoJ);
+    SDL_RenderCopy(ren, continuar ,&c, &continuarJ);
+    SDL_RenderCopy(ren, sair ,&s, &sairJ);
+    SDL_RenderPresent(ren);
 
-    while(rodando && !SDL_QuitRequested()){
-        SDL_RenderCopy(ren, fundo ,NULL, NULL);
-        SDL_RenderCopy(ren, logo ,NULL, &titulo);
-        SDL_RenderCopy(ren, novo ,&n, &novoJ);
-        SDL_RenderCopy(ren, continuar ,&c, &continuarJ);
-        SDL_RenderCopy(ren, sair ,&s, &sairJ);
-        SDL_RenderPresent(ren);
+    SDL_Event evt;
+    int isevt = SDL_WaitEventTimeout(&evt, espera);
+    if (isevt && evt.type == SDL_QUIT) break;
+    
+    
 
-        SDL_Event evt;
-        int isevt = SDL_WaitEventTimeout(&evt, espera);
-        if (isevt && evt.type == SDL_QUIT) break;
+    if (isevt) {
+        switch (evt.type) {
+            case SDL_KEYDOWN:
+                switch(evt.key.keysym.scancode) {
+                    case SDL_SCANCODE_DOWN:
+                    case SDL_SCANCODE_UP:
+                        if (selecionadoN == 1) {
+                            n = (SDL_Rect){0,0,315,35};
+                            s = (SDL_Rect){315,0,315,35};
+                            selecionadoN=0; selecionadoS=1; selecionadoC=0;
+                        }
+                        else if (selecionadoS == 1) {
+                            s = (SDL_Rect){0,0,315,35};
+                            n = (SDL_Rect){315,0,315,35};
+                            selecionadoN=1; selecionadoS=0; selecionadoC=0;
+                        }
+                        break;
 
-        if (evt.type == SDL_KEYDOWN){
-            switch(evt.key.keysym.scancode) {
-                case SDL_SCANCODE_DOWN:
-                case SDL_SCANCODE_UP:
-                    if (selecionadoN == 1) { n = (SDL_Rect){0,0,315,35}; s = (SDL_Rect){315,0,315,35}; selecionadoN=0; selecionadoS=1; }
-                    else if (selecionadoS == 1) { s = (SDL_Rect){0,0,315,35}; n = (SDL_Rect){315,0,315,35}; selecionadoN=1; selecionadoS=0; }
-                    break;
+                    case SDL_SCANCODE_RETURN:
+                    case SDL_SCANCODE_Z:
+                        if(selecionadoN == 1){
+                            runGame(win, ren);
+                        } else if(selecionadoS == 1){
+                            rodando = 0;
+                        }
+                        break;
+                }
+                break;
 
-                case SDL_SCANCODE_RETURN:
-                case SDL_SCANCODE_Z:
-                    if(selecionadoN == 1){
-                        // inicia o jogo
+            case SDL_MOUSEMOTION: {
+                int mx = evt.motion.x;
+                int my = evt.motion.y;
+
+                // Novo jogo
+                if (mx >= novoJ.x && mx <= novoJ.x+novoJ.w &&
+                    my >= novoJ.y && my <= novoJ.y+novoJ.h) {
+                    n = (SDL_Rect){315,0,315,35};
+                    c = (SDL_Rect){0,0,315,35};
+                    s = (SDL_Rect){0,0,315,35};
+                    selecionadoN=1; selecionadoC=0; selecionadoS=0;
+                }
+
+                // Continuar
+
+                // Sair
+                else if (mx >= sairJ.x && mx <= sairJ.x+sairJ.w &&
+                         my >= sairJ.y && my <= sairJ.y+sairJ.h) {
+                    s = (SDL_Rect){315,0,315,35};
+                    n = (SDL_Rect){0,0,315,35};
+                    c = (SDL_Rect){0,0,315,35};
+                    selecionadoN=0; selecionadoC=0; selecionadoS=1;
+                }
+                break;
+            }
+
+            case SDL_MOUSEBUTTONDOWN:
+                if (evt.button.button == SDL_BUTTON_LEFT) {
+                    if (selecionadoN == 1) {
                         runGame(win, ren);
-                    } else if(selecionadoS == 1){
+                    } else if (selecionadoC == 1) {
+                        // continuar jogo (ainda não implementado)
+                    } else if (selecionadoS == 1) {
                         rodando = 0;
                     }
-                    break;
-            }
+                }
+                break;
         }
     }
-
+}
+    Mix_FreeMusic(musica);
+    Mix_CloseAudio();
     SDL_DestroyTexture(sair);
     SDL_DestroyTexture(continuar);
     SDL_DestroyTexture(novo);
