@@ -23,7 +23,7 @@ void desenharParalax(SDL_Renderer* ren, SDL_Texture* tex, float fatorParalax, in
 
 void runGame(SDL_Window* win, SDL_Renderer* ren) {
     SDL_Texture* sprites = IMG_LoadTexture(ren, "./src/entidades/ss.png");
-    SDL_Texture* ponte   = IMG_LoadTexture(ren, "./src/mapa/ponte.png");
+    SDL_Texture* ponte   = IMG_LoadTexture(ren, "./src/mapa/ponteportoes.png");
     SDL_Texture* fundo   = IMG_LoadTexture(ren, "./src/mapa/bg+lua.png");
     SDL_Texture* hud     = IMG_LoadTexture(ren, "./src/mapa/hud.png");
     SDL_Texture* parafu  = IMG_LoadTexture(ren, "./src/mapa/paralax fundo.png");
@@ -35,22 +35,12 @@ void runGame(SDL_Window* win, SDL_Renderer* ren) {
     int w, h;
     SDL_GetWindowSize(win, &w, &h);
 
-    SDL_EventState(SDL_MOUSEMOTION, SDL_IGNORE);
-    SDL_EventState(SDL_MOUSEBUTTONDOWN, SDL_IGNORE);
-    SDL_EventState(SDL_MOUSEBUTTONUP, SDL_IGNORE);
-
     SDL_Rect camera = {0, 0, w, h};
     SDL_Rect vida = {0, 0, 384, 126};
-    SDL_Rect player = { w/5, (h - ((15*h)/100)/3) - 100 + 5, 110, 100 };
-    SDL_Rect ponteR = {0, h - ((15*h)/100), 2000, (15*h)/100};
-    SDL_Rect chaoR  = {0, (h - ((15*h)/100)/3) + 5, 2000, ((15*h)/100)/3};
+    SDL_Rect player = { w/5, (h - ((15*h)/100)/3) - 100, 110, 100 };
+    SDL_Rect ponteR = {0, h - ((100*h)/100), 4200, (100*h)/100};
+    SDL_Rect chaoR  = {0, (h - ((15*h)/100)/3)-10, 2000, ((15*h)/100)/3};
     SDL_Rect f      = {0, 0, 230, 210};
-
-    int numPlataformas = 2;
-    SDL_Rect plataformas[2] = {
-        {200, h-200, 150, 20},
-        {400, h-300, 150, 20}
-    };
 
     // VARIÁVEIS DO JOGADOR
     int espera = 16;
@@ -89,11 +79,10 @@ void runGame(SDL_Window* win, SDL_Renderer* ren) {
         if (keys[SDL_SCANCODE_LEFT]) {
             movendo = 1;
             if (frameAtual == direita && !virando && noChao) {
-    virando = 1;
-    frameVirada = 0;
-    ultimoFrameTroca = agora;
-}
-
+                virando = 1;
+                frameVirada = 0;
+                ultimoFrameTroca = agora;
+            }
             player.x -= 13;
 
             if (noChao) {
@@ -120,11 +109,10 @@ void runGame(SDL_Window* win, SDL_Renderer* ren) {
         if (keys[SDL_SCANCODE_RIGHT]) {
             movendo = 1;
             if (frameAtual == esquerda && !virando && noChao) {
-    virando = 2;
-    frameVirada = 0;
-    ultimoFrameTroca = agora;
-}
-
+                virando = 2;
+                frameVirada = 0;
+                ultimoFrameTroca = agora;
+            }
             player.x += 13;
 
             if (noChao) {
@@ -149,35 +137,27 @@ void runGame(SDL_Window* win, SDL_Renderer* ren) {
 
         // Troca de direção no ar
         if (!noChao && movendo) {
-            if (keys[SDL_SCANCODE_RIGHT] && frameAtual != direita) {
-                frameAtual = direita;
-            } else if (keys[SDL_SCANCODE_LEFT] && frameAtual != esquerda) {
-                frameAtual = esquerda;
-            }
+            if (keys[SDL_SCANCODE_RIGHT] && frameAtual != direita) frameAtual = direita;
+            else if (keys[SDL_SCANCODE_LEFT] && frameAtual != esquerda) frameAtual = esquerda;
         }
 
         // ANIMAÇÃO DE PULO
         if (!noChao) {
             int linhaPulo = (frameAtual == direita) ? 4 : 5;
-            if (vely < 0) { // Subindo
+            if (vely < 0) {
                 if (agora - ultimoFrameTroca > intervaloFrame) {
                     ultimoFrameTroca = agora;
                     framePulo++;
                     if (framePulo > 2) framePulo = 2;
                 }
-            } else { // Caindo
-                framePulo = 3;
-            }
+            } else framePulo = 3;
             f = (SDL_Rect){230 * framePulo, 210 * linhaPulo, 230, 210};
         } else if (!movendo && !virando) {
-            // PARADO
             if (frameAtual == direita) f = (SDL_Rect){0, 0, 230, 210};
             else f = (SDL_Rect){0, 210*2, 230, 210};
         }
 
-     if (!noChao && virando != 0) {
-            virando = 0;
-      }
+        if (!noChao && virando != 0) virando = 0;
 
         // FÍSICA
         player.y += vely;
@@ -192,75 +172,37 @@ void runGame(SDL_Window* win, SDL_Renderer* ren) {
             pulando = 0;
         }
 
-        // Colisão com plataformas
-        for (int i = 0; i < numPlataformas; i++) {
-            SDL_Rect plat = plataformas[i];
-            if (vely >= 0 &&
-                player.y + player.h > plat.y &&
-                player.y + player.h - vely <= plat.y &&
-                player.x + player.w > plat.x &&
-                player.x < plat.x + plat.w) {
-                player.y = plat.y - player.h;
-                vely = 0;
-                noChao = 1;
-                pulando = 0;
-            }
-        }
-
-        // Colisão por baixo
-        for (int i = 0; i < numPlataformas; i++) {
-            SDL_Rect plat = plataformas[i];
-            if (vely < 0 &&
-                player.y <= plat.y + plat.h &&
-                player.y - vely >= plat.y + plat.h &&
-                player.x + player.w > plat.x &&
-                player.x < plat.x + plat.w) {
-                player.y = plat.y + plat.h;
-                vely = 0;
-            }
-        }
-
         // CÂMERA
         camera.x = player.x + player.w / 2 - w / 2;
         if (camera.x < 0) camera.x = 0;
-        if (camera.x > 4000 - w) camera.x = 4000 - w;
+        if (camera.x > 4200 - w) camera.x = 4200 - w;
 
         // RENDER
         SDL_RenderClear(ren);
 
-        SDL_Rect fundoR = {(w-2080)/2, 0, 2080, 1040};
-        
-        
+        SDL_Rect fundoR = {(w-2080)/2, ((h-1040)/2)+(5*h)/100, 2080, 1040};
 
         SDL_RenderCopy(ren, fundo, NULL, &fundoR);        
-        desenharParalax(ren, parafu, 3.0f, camera.x, 0); // fundo (lento)
-        desenharParalax(ren, parafr, 1.5f, camera.x, 0); // frente (mais rápido)
-
-
-
-        // Plataformas e ponte
-        SDL_Rect ponteScreen = ponteR;
-        ponteScreen.x -= camera.x;
-        SDL_RenderCopy(ren, ponte, NULL, &ponteScreen);
-
-        for (int i = 0; i < numPlataformas; i++) {
-            SDL_Rect platScreen = plataformas[i];
-            platScreen.x -= camera.x;
-            SDL_RenderFillRect(ren, &platScreen);
-        }
+        desenharParalax(ren, parafu, 3.0f, camera.x, 20); // fundo
+        desenharParalax(ren, parafr, 1.5f, camera.x, 20); // frente
 
         // Jogador
         SDL_Rect playerScreen = player;
         playerScreen.x -= camera.x;
         SDL_RenderCopy(ren, sprites, &f, &playerScreen);
 
-        // HUD (fica fixa na tela)
+        // Ponte na frente do jogador
+        SDL_Rect ponteScreen = ponteR;
+        ponteScreen.x -= camera.x;
+        SDL_RenderCopy(ren, ponte, NULL, &ponteScreen);
+
+        // HUD
         SDL_RenderCopy(ren, hud, NULL, &vida);
 
         SDL_RenderPresent(ren);
     }
 
-    // --- LIMPEZA ---
+    // LIMPEZA
     SDL_DestroyTexture(fundo);
     SDL_DestroyTexture(sprites);
     SDL_DestroyTexture(ponte);
@@ -321,7 +263,7 @@ int main(int argc, char* args[]) {
   if (!musica) {
     printf("Erro ao carregar música: %s\n", Mix_GetError());
   }
-    Mix_PlayMusic(musica, -1);
+    //Mix_PlayMusic(musica, -1);
     while (rodando && !SDL_QuitRequested()) {
     SDL_RenderClear(ren);
     SDL_RenderCopy(ren, fundo ,NULL, NULL);
