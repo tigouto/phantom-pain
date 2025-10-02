@@ -28,7 +28,9 @@ void runGame(SDL_Window* win, SDL_Renderer* ren) {
     SDL_Texture* hud     = IMG_LoadTexture(ren, "./src/mapa/hud.png");
     SDL_Texture* parafu  = IMG_LoadTexture(ren, "./src/mapa/paralax fundo.png");
     SDL_Texture* parafr  = IMG_LoadTexture(ren, "./src/mapa/paralax frente.png");
-    assert(sprites && ponte && fundo && hud && parafu && parafr);
+    SDL_Texture* portao  = IMG_LoadTexture(ren, "./src/mapa/portão.png");
+    
+    assert(sprites && ponte && fundo && hud && parafu && parafr && portao);
 
     SDL_ShowCursor(SDL_DISABLE);
 
@@ -41,6 +43,7 @@ void runGame(SDL_Window* win, SDL_Renderer* ren) {
     SDL_Rect ponteR = {0, h - ((100*h)/100), 4200, (100*h)/100};
     SDL_Rect chaoR  = {0, (h - ((15*h)/100)/3)-10, 2000, ((15*h)/100)/3};
     SDL_Rect f      = {0, 0, 230, 210};
+    SDL_Rect porta = {0,h-400-((h*7)/100), 115, 400};
 
     // VARIÁVEIS DO JOGADOR
     int espera = 16;
@@ -83,7 +86,9 @@ void runGame(SDL_Window* win, SDL_Renderer* ren) {
                 frameVirada = 0;
                 ultimoFrameTroca = agora;
             }
+            if(player.x>62){
             player.x -= 13;
+            }
 
             if (noChao) {
                 if (virando == 1) {
@@ -185,6 +190,12 @@ void runGame(SDL_Window* win, SDL_Renderer* ren) {
         SDL_RenderCopy(ren, fundo, NULL, &fundoR);        
         desenharParalax(ren, parafu, 3.0f, camera.x, 20); // fundo
         desenharParalax(ren, parafr, 1.5f, camera.x, 20); // frente
+
+        SDL_Rect portaMundo = {0, h - 400 - ((h * 7) / 100), 115, 400}; // posição no mundo
+        SDL_Rect portaTela = portaMundo;
+        portaTela.x -= camera.x; // ajusta para a câmera
+        SDL_RenderCopy(ren, portao, NULL, &portaTela);
+        
 
         // Jogador
         SDL_Rect playerScreen = player;
