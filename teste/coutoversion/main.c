@@ -47,10 +47,11 @@ static void desenharParalax(SDL_Renderer* ren, SDL_Texture* tex, float fatorPara
     SDL_QueryTexture(tex, NULL, NULL, &texW, &texH);
     if (texW <= 0) return;
 
-    // escala usada originalmente no seu código: 0.6
+  
     int dstW = (int)(texW * 0.6f);
     int dstH = (int)(texH * 0.6f);
     if (dstW <= 0) dstW = texW;
+
     // offset calculado pelo fator
     int offsetX = -(int)(cameraX / fatorParalax) % dstW;
     if (offsetX > 0) offsetX -= dstW;
@@ -239,7 +240,7 @@ void runGame(SDL_Window* win, SDL_Renderer* ren) {
     SDL_RenderPresent(ren);
     fade_out_in(ren, w, h, 0); // fade in (255->0) para aparecer
 
-    // --- Loop principal (mantendo sua lógica de animação e física) ---
+   
     while (!SDL_QuitRequested()) {
         SDL_Event evt;
         int isevt = SDL_WaitEventTimeout(&evt, espera);
@@ -266,9 +267,10 @@ void runGame(SDL_Window* win, SDL_Renderer* ren) {
                 frameVirada = 0;
                 ultimoFrameTroca = agora;
             }
-            // Limite de movimento dentro do mundo (permitir sair para trocar de cenário)
+            
+        if(atual != 0 || player.x > 55){
             player.x -= 13;
-
+            }
             if (noChao) {
                 if (virando == 1) {
                     if (agora - ultimoFrameTroca > intervaloFrame) {
