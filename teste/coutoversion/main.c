@@ -4,9 +4,6 @@
 #include <assert.h>
 #include <stdio.h>
 
-#define MAX_PARALAX 8
-#define MAX_ELEMENTOS 32
-
 // ---------- SISTEMA DE CENÁRIOS E TRANSIÇÕES ----------
 
 #define MAX_PARALAX 8
@@ -155,16 +152,20 @@ void runGame(SDL_Window* win, SDL_Renderer* ren) {
     assert(sprites && hud);
 
     // Texturas de cenário (carregamos aqui e reaproveitamos nas áreas)
-    SDL_Texture* fundo_tex     = IMG_LoadTexture(ren, "./src/mapa/bg+lua.png");
-    SDL_Texture* parafu_tex    = IMG_LoadTexture(ren, "./src/mapa/paralax fundo.png");
-    SDL_Texture* parafr_tex    = IMG_LoadTexture(ren, "./src/mapa/paralax frente.png");
-    SDL_Texture* ponte_tex     = IMG_LoadTexture(ren, "./src/mapa/ponte.png");
-    SDL_Texture* portao_tex    = IMG_LoadTexture(ren, "./src/mapa/portão.png");
-    SDL_Texture* ponte_prox    = IMG_LoadTexture(ren, "./src/mapa/sala-port.png");   // textura extra exemplo (use se existir)
-    SDL_Texture* arvore_tex    = IMG_LoadTexture(ren, "./src/mapa/arvore.png"); // pode falhar se arquivo não existir
-
-    assert(fundo_tex && parafu_tex && parafr_tex && ponte_tex && portao_tex && ponte_prox);
-    // arvore_tex é opcional, não assertamos
+    SDL_Texture* fundo_tex     = IMG_LoadTexture(ren, "./src/mapa/ponte-f/bg+lua.png");
+    SDL_Texture* parafu_tex    = IMG_LoadTexture(ren, "./src/mapa/ponte-f/paralax fundo.png");
+    SDL_Texture* parafr_tex    = IMG_LoadTexture(ren, "./src/mapa/ponte-f/paralax frente.png");
+    SDL_Texture* ponte_tex     = IMG_LoadTexture(ren, "./src/mapa/ponte-f/ponte.png");
+    SDL_Texture* portao_tex    = IMG_LoadTexture(ren, "./src/mapa/ponte-f/portão.png");
+    SDL_Texture* ponte_prox    = IMG_LoadTexture(ren, "./src/mapa/ponte-f/sala-port.png");   // textura extra exemplo 
+    
+     SDL_Texture* fundo_sala    = IMG_LoadTexture(ren, "./src/mapa/sala-p/background.png");
+    SDL_Texture * borda_sala = IMG_LoadTexture(ren, "./src/mapa/sala-p/borda.png");
+    SDL_Texture * atras_sala = IMG_LoadTexture(ren, "./src/mapa/sala-p/fundo-atras.png");
+    SDL_Texture * frente_sala = IMG_LoadTexture(ren, "./src/mapa/sala-p/fundo-frente.png");
+    SDL_Texture * porta_sala = IMG_LoadTexture(ren, "./src/mapa/sala-p/porta.png");
+    
+    
 
     int w, h;
     SDL_GetWindowSize(win, &w, &h);
@@ -180,28 +181,28 @@ void runGame(SDL_Window* win, SDL_Renderer* ren) {
     // ponte e portão (posições sugeridas; ajustei para coordenadas do mundo)
     SDL_Rect ponteR = { 0, h - ((100 * h) / 100), 4000, (100 * h) / 100 }; // mantive parecido ao seu original
     SDL_Rect portaR = { 0, h - 399 - ((h * 7) / 100), 115, 400 };
-    SDL_Rect portaProxR = { 4000, 0, 100, h };
+    SDL_Rect portaProxR = { 4000, 0, 70, h };
+    
+    SDL_Rect bordaSalaR = {-125, 0, w, h};
     
     addAtras(&cenarios[0], portao_tex, portaR);
     addAtras(&cenarios[0], ponte_prox, portaProxR);
     addFrente(&cenarios[0], ponte_tex, ponteR);
     cenarios[0].posX = 0;
-    cenarios[0].largura = 4100;
+    cenarios[0].largura = 4070;
     cenarios[0].altura = h;
     totalCenarios++;
 
     // Cenário 1 (exemplo lateral, começa imediatamente após o anterior)
     initCenario(&cenarios[1]);
-    cenarios[1].fundo = fundo_tex;
-    addParalax(&cenarios[1], parafu_tex, 3.0f, 20);
-    addParalax(&cenarios[1], parafr_tex, 1.5f, 20);
-    if (arvore_tex) {
-        SDL_Rect arvR = { 500, h - 500, 200, 400 };
-        addAtras(&cenarios[1], arvore_tex, arvR);
-    }
+    cenarios[1].fundo = fundo_sala;
     cenarios[1].posX = cenarios[0].posX + cenarios[0].largura; // encadeado à direita
-    cenarios[1].largura = 4000;
+    cenarios[1].largura = 1155;
     cenarios[1].altura = h;
+    addAtras(&cenarios[1], fundo_sala, bordaSalaR);
+    addAtras(&cenarios[1], atras_sala, bordaSalaR);
+    addAtras(&cenarios[1], frente_sala, bordaSalaR);
+    addFrente(&cenarios[1], borda_sala, bordaSalaR);
     totalCenarios++;
 
     // (adicione mais cenários aqui ou faça carregar via JSON se quiser)
@@ -423,7 +424,6 @@ void runGame(SDL_Window* win, SDL_Renderer* ren) {
     if (parafr_tex) SDL_DestroyTexture(parafr_tex);
     if (ponte_tex) SDL_DestroyTexture(ponte_tex);
     if (portao_tex) SDL_DestroyTexture(portao_tex);
-    if (arvore_tex) SDL_DestroyTexture(arvore_tex);
 
     SDL_DestroyTexture(hud);
     SDL_DestroyTexture(sprites);
