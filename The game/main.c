@@ -292,7 +292,8 @@ void runGame(SDL_Window* win, SDL_Renderer* ren) {
 
     SDL_Rect vidaRect = {0, 0, w/5, h/10};
     SDL_Rect player = { w/5, (h - ((15*h)/100)/3) - 100 + 5, 110, 100 };
-    SDL_Rect chaoR = { 0, (h - ((15*h)/100)/3)-15, w, ((15*h)/100)/3 };
+    
+    SDL_Rect chaoR = { 0, h-(ponteR.y + ponteR.h)/15, w, (ponteR.y + ponteR.h)/15};
 
     // Plataformas (do teste.c)
     int numPlataformas = 0;
@@ -334,7 +335,7 @@ void runGame(SDL_Window* win, SDL_Renderer* ren) {
     // NPCs
     Pedinte pedintes[8];
     int numPedintes = 0;
-    initPedinte(&pedintes[numPedintes++], 3*w/5, (h - ((15*h)/100)/3) - 100 -20, 110, 100);
+    initPedinte(&pedintes[numPedintes++], 3*w/5,h-(ponteR.y+ponteR.h)/15-105, 110, 100);
 
     // câmera e estado de cenário
     SDL_Rect camera = {0, 0, w, h};
