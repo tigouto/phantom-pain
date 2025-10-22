@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <math.h>
 
+
 /* ----------------- CONSTANTES GLOBAIS ----------------- */
 #define MAX_PARALAX 8
 #define MAX_ELEMENTOS 32
@@ -12,6 +13,8 @@
 
 #define RECUO_PEDINTE 100
 #define TEMPO_INVULNERAVEL 1000 // ms
+
+#define MAX_PEDINTES 16
 
 /* ----------------- ESTRUTURAS ----------------- */
 
@@ -26,6 +29,28 @@ typedef struct {
     SDL_Rect pos;
 } Elemento;
 
+enum Direcao { ESQUERDA = -1, DIREITA = 1 };
+enum EstadoInimigo { INIMIGO_PARADO, INIMIGO_LEVANTANDO, INIMIGO_ANDANDO, INIMIGO_PATRULHANDO };
+
+typedef struct {
+    SDL_Rect pos;           // posição e tamanho do sprite no mundo
+    SDL_Rect frameRect;     // região da spritesheet
+    enum Direcao dir;
+    enum EstadoInimigo estado;
+
+    Uint32 ultimoFrame;
+    int frameAtual;
+    int intervaloFrame;
+
+    int distanciaVisao;
+    int limiteEsq, limiteDir;  // área de patrulha
+} Pedinte;
+
+/* Prototipagem das funções do Pedinte */
+static void initPedinte(Pedinte* p, int x, int y, int w, int h);
+static void updatePedinte(Pedinte* p, SDL_Rect playerRect, Uint32 agora);
+static void renderPedinte(SDL_Renderer* ren, SDL_Texture* tex, Pedinte* p, SDL_Rect camera);
+
 typedef struct {
     SDL_Texture* fundo;
     Paralax paralax[MAX_PARALAX];
@@ -36,11 +61,24 @@ typedef struct {
 
     Elemento frente[MAX_ELEMENTOS];
     int numFrente;
+    
+    Pedinte pedintes[MAX_PEDINTES];
+    int numPedintes;
 
     int posX;       // posição X do início do cenário no "mundo"
     int largura;    // largura total do cenário
     int altura;     // altura (padrão pode ser a altura da janela)
 } Cenario;
+
+/* --- Prototipagem de funções do Cenario --- */
+static void initCenario(Cenario* c);
+static void addParalax(Cenario* c, SDL_Texture* tex, float fator, int posY);
+static void addAtras(Cenario* c, SDL_Texture* tex, SDL_Rect pos);
+static void addFrente(Cenario* c, SDL_Texture* tex, SDL_Rect pos);
+static void addPedinte(Cenario* c, int x, int y, int w, int h);
+static void desenharCenario(SDL_Renderer* ren, Cenario* c, SDL_Rect camera, int screenW, int screenH, int w, int h);
+static void desenharFrente(SDL_Renderer* ren, Cenario* c, SDL_Rect camera);
+static void fade_out_in(SDL_Renderer* ren, int screenW, int screenH, int fadeOut);
 
 // Desenha paralax (ajustado para cobrir horizontalmente com repetição)
 static void desenharParalax(SDL_Renderer* ren, SDL_Texture* tex, float fatorParalax, int cameraX, int posY, int screenW,int w,int h) {
@@ -73,7 +111,9 @@ static void initCenario(Cenario* c) {
     c->posX = 0;
     c->largura = 4000;
     c->altura = 1080;
+    c->numPedintes = 0;
 }
+
 static void addParalax(Cenario* c, SDL_Texture* tex, float fator, int posY) {
     if (c->numParalax < MAX_PARALAX) c->paralax[c->numParalax++] = (Paralax){tex, fator, posY};
 }
@@ -82,6 +122,12 @@ static void addAtras(Cenario* c, SDL_Texture* tex, SDL_Rect pos) {
 }
 static void addFrente(Cenario* c, SDL_Texture* tex, SDL_Rect pos) {
     if (c->numFrente < MAX_ELEMENTOS) c->frente[c->numFrente++] = (Elemento){tex, pos};
+}
+
+static void addPedinte(Cenario* c, int x, int y, int w, int h) {
+    if (c->numPedintes < MAX_PEDINTES) {
+        initPedinte(&c->pedintes[c->numPedintes++], x, y, w, h);
+    }
 }
 
 static void desenharCenario(SDL_Renderer* ren, Cenario* c, SDL_Rect camera, int screenW, int screenH,int w,int h) {
@@ -136,22 +182,7 @@ static void fade_out_in(SDL_Renderer* ren, int screenW, int screenH, int fadeOut
 }
 
 /* ----------------- NPC: PEDINTE ----------------- */
-enum Direcao { ESQUERDA = -1, DIREITA = 1 };
-enum EstadoInimigo { INIMIGO_PARADO, INIMIGO_LEVANTANDO, INIMIGO_ANDANDO, INIMIGO_PATRULHANDO };
 
-typedef struct {
-    SDL_Rect pos;           // posição e tamanho do sprite no mundo
-    SDL_Rect frameRect;     // região da spritesheet
-    enum Direcao dir;
-    enum EstadoInimigo estado;
-
-    Uint32 ultimoFrame;
-    int frameAtual;
-    int intervaloFrame;
-
-    int distanciaVisao;
-    int limiteEsq, limiteDir;  // área de patrulha
-} Pedinte;
 
 static void initPedinte(Pedinte* p, int x, int y, int w, int h) {
     p->pos = (SDL_Rect){x, y, w, h};
@@ -333,9 +364,7 @@ void runGame(SDL_Window* win, SDL_Renderer* ren) {
     int totalFramesAtaque = 4;
 
     // NPCs
-    Pedinte pedintes[8];
-    int numPedintes = 0;
-    initPedinte(&pedintes[numPedintes++], 3*w/5,h-(ponteR.y+ponteR.h)/15-105, 110, 100);
+    addPedinte(&cenarios[0], 3*w/5, h-(ponteR.y+ponteR.h)/15-105, 110, 100);
 
     // câmera e estado de cenário
     SDL_Rect camera = {0, 0, w, h};
@@ -358,7 +387,9 @@ void runGame(SDL_Window* win, SDL_Renderer* ren) {
         Uint32 agora = SDL_GetTicks();
 
         // Atualiza pedintes
-        for (int i = 0; i < numPedintes; i++) updatePedinte(&pedintes[i], player, agora);
+        for (int i = 0; i < cenarios[atual].numPedintes; i++){
+        	updatePedinte(&cenarios[atual].pedintes[i], player, agora);
+		}
 
         // Animação flor morrendo
         if (animandoFlor >= 0 && agora - ultimoFrameFlor > intervaloFrameFlor) {
@@ -497,30 +528,31 @@ void runGame(SDL_Window* win, SDL_Renderer* ren) {
         // --- INTERAÇÕES: ataque acerta pedinte / pedinte acerta player ---
         // ataque acerta pedinte
         if (atacando) {
-            for (int i = 0; i < numPedintes; i++) {
-                if (SDL_HasIntersection(&hitboxPlayer, &pedintes[i].pos)) {
-                    // recua o pedinte
-                    pedintes[i].pos.x += (pedintes[i].dir == DIREITA) ? -RECUO_PEDINTE : RECUO_PEDINTE;
-                    // opcional: empurra um pouco o player para evitar multiple hits; aqui só um break para evitar múltiplos acertos por ataque
-                    break;
-                }
-            }
-        }
+    		for (int i = 0; i < cenarios[atual].numPedintes; i++) {
+        		Pedinte* p = &cenarios[atual].pedintes[i];
+        		if (SDL_HasIntersection(&hitboxPlayer, &p->pos)) {
+            		p->pos.x += (p->dir == DIREITA) ? -RECUO_PEDINTE : RECUO_PEDINTE;
+            		break;
+        		}
+    		}
+		}
+
 
         // pedinte colide com player -> player perde flor (se não invulneravel)
-        for (int i = 0; i < numPedintes; i++) {
-            if (SDL_HasIntersection(&player, &pedintes[i].pos)) {
-                // recuo do pedinte
-                pedintes[i].pos.x += (pedintes[i].dir == DIREITA ? -RECUO_PEDINTE : RECUO_PEDINTE);
-                if (!invulneravel && vidas > 0 && animandoFlor == -1) {
-                    animandoFlor = vidas - 1;
-                    frameFlorMorrendo = 0;
-                    ultimoFrameFlor = agora;
-                    invulneravel = 1;
-                    tempoInvulneravel = agora;
-                }
-            }
-        }
+        for (int i = 0; i < cenarios[atual].numPedintes; i++) {
+		    Pedinte* p = &cenarios[atual].pedintes[i];
+		    if (SDL_HasIntersection(&player, &p->pos)) {
+		        p->pos.x += (p->dir == DIREITA ? -RECUO_PEDINTE : RECUO_PEDINTE);
+		        if (!invulneravel && vidas > 0 && animandoFlor == -1) {
+		            animandoFlor = vidas - 1;
+		            frameFlorMorrendo = 0;
+		            ultimoFrameFlor = agora;
+		            invulneravel = 1;
+		            tempoInvulneravel = agora;
+		        }
+		    }
+		}
+
 
         // câmera
         camera.x = player.x + player.w/2 - w/2;
@@ -575,8 +607,10 @@ void runGame(SDL_Window* win, SDL_Renderer* ren) {
         }
 
         // pedintes
-        for (int i = 0; i < numPedintes; i++) renderPedinte(ren, texPedinte, &pedintes[i], camera);
-
+        for (int i = 0; i < cenarios[atual].numPedintes; i++){
+        	renderPedinte(ren, texPedinte, &cenarios[atual].pedintes[i], camera);
+		}
+    
         // desenha frente cenário
         desenharFrente(ren, &cenarios[atual], camera);
 
