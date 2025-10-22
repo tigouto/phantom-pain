@@ -16,6 +16,8 @@
 
 #define MAX_PEDINTES 16
 
+#define MAX_CHECKPOINTS 8
+
 /* ----------------- ESTRUTURAS ----------------- */
 
 typedef struct {
@@ -28,6 +30,20 @@ typedef struct {
     SDL_Texture* tex;
     SDL_Rect pos;
 } Elemento;
+
+typedef struct{
+	SDL_Texture* tex;
+	SDL_Rect pos;
+	int ativado;
+	
+	// Controle da animação
+    int frameAtual;
+    int numFrames;
+    int larguraFrame;
+    int alturaFrame;
+    float tempoFrame;      // tempo em ms entre frames
+    float timer;           // acumulador interno
+} Checkpoint;
 
 enum Direcao { ESQUERDA = -1, DIREITA = 1 };
 enum EstadoInimigo { INIMIGO_PARADO, INIMIGO_LEVANTANDO, INIMIGO_ANDANDO, INIMIGO_PATRULHANDO };
@@ -44,6 +60,8 @@ typedef struct {
 
     int distanciaVisao;
     int limiteEsq, limiteDir;  // área de patrulha
+    
+    int vidaPedinte;
 } Pedinte;
 
 /* Prototipagem das funções do Pedinte */
@@ -64,6 +82,9 @@ typedef struct {
     
     Pedinte pedintes[MAX_PEDINTES];
     int numPedintes;
+    
+    Checkpoint checkpoints[MAX_CHECKPOINTS];
+    int numCheckpoints;
 
     int posX;       // posição X do início do cenário no "mundo"
     int largura;    // largura total do cenário
@@ -112,6 +133,7 @@ static void initCenario(Cenario* c) {
     c->largura = 4000;
     c->altura = 1080;
     c->numPedintes = 0;
+    c->numCheckpoints = 0;
 }
 
 static void addParalax(Cenario* c, SDL_Texture* tex, float fator, int posY) {
@@ -129,6 +151,30 @@ static void addPedinte(Cenario* c, int x, int y, int w, int h) {
         initPedinte(&c->pedintes[c->numPedintes++], x, y, w, h);
     }
 }
+
+static void addCheckpoints(Cenario* c, SDL_Texture* tex, SDL_Rect pos){
+	if (c->numCheckpoints < MAX_CHECKPOINTS){
+		c->checkpoints[c->numCheckpoints++] = (Checkpoint){ tex, pos, 0};
+	}
+}
+
+static void addCheckpointAnimado(Cenario* c, SDL_Texture* tex, SDL_Rect pos, int numFrames, int larguraFrame, int alturaFrame, float tempoFrame) {
+    if (c->numCheckpoints < MAX_CHECKPOINTS) {
+        Checkpoint cp = {
+            .tex = tex,
+            .pos = pos,
+            .ativado = 0,
+            .frameAtual = 0,
+            .numFrames = numFrames,
+            .larguraFrame = larguraFrame,
+            .alturaFrame = alturaFrame,
+            .tempoFrame = tempoFrame,
+            .timer = 0.0f
+        };
+        c->checkpoints[c->numCheckpoints++] = cp;
+    }
+}
+
 
 static void desenharCenario(SDL_Renderer* ren, Cenario* c, SDL_Rect camera, int screenW, int screenH,int w,int h) {
     if (!c) return;
@@ -255,6 +301,44 @@ static void renderPedinte(SDL_Renderer* ren, SDL_Texture* tex, Pedinte* p, SDL_R
     SDL_RenderCopy(ren, tex, &p->frameRect, &dest);
 }
 
+static void updateCheckpoint(Checkpoint* cp, SDL_Rect player, float deltaTime) {
+    // Atualiza estado de ativação
+    if (!cp->ativado && SDL_HasIntersection(&player, &cp->pos)) {
+        cp->ativado = 1;
+        printf("Checkpoint ativado!\n");
+    }
+
+    // Atualiza animação (loop contínuo)
+    cp->timer += deltaTime;
+    if (cp->timer >= cp->tempoFrame) {
+        cp->timer = 0;
+        cp->frameAtual++;
+        if (cp->frameAtual >= cp->numFrames)
+            cp->frameAtual = 0;
+    }
+}
+
+
+static void renderCheckpoint(SDL_Renderer* ren, Checkpoint* cp, SDL_Rect camera) {
+    SDL_Rect src = {
+        cp->frameAtual * cp->larguraFrame,
+        0,
+        cp->larguraFrame,
+        cp->alturaFrame
+    };
+
+    SDL_Rect dest = cp->pos;
+    dest.x -= camera.x;
+
+    if (cp->ativado)
+        SDL_SetTextureColorMod(cp->tex, 150, 255, 150);
+    else
+        SDL_SetTextureColorMod(cp->tex, 255, 255, 255);
+
+    SDL_RenderCopy(ren, cp->tex, &src, &dest);
+}
+
+
 /* ----------------- FUNÇÃO PRINCIPAL DO JOGO (runGame) ----------------- */
 void runGame(SDL_Window* win, SDL_Renderer* ren) {
     // --- Texturas básicas (sprites, HUD, pedinte, flor) ---
@@ -272,6 +356,7 @@ void runGame(SDL_Window* win, SDL_Renderer* ren) {
     SDL_Texture* ponte_tex  = IMG_LoadTexture(ren, "./src/mapa/ponte-f/ponte.png");
     SDL_Texture* portao_tex = IMG_LoadTexture(ren, "./src/mapa/ponte-f/portão.png");
     SDL_Texture* ponte_prox = IMG_LoadTexture(ren, "./src/mapa/ponte-f/sala-port.png");
+	SDL_Texture* texCheckpoint = IMG_LoadTexture(ren, "./src/mapa/ponte-f/checkpoint.png");
 
     // sala textures (exemplo)
     SDL_Texture* fundo_sala = IMG_LoadTexture(ren, "./src/mapa/sala-p/background.png");
@@ -322,7 +407,7 @@ void runGame(SDL_Window* win, SDL_Renderer* ren) {
     SDL_ShowCursor(SDL_DISABLE);
 
     SDL_Rect vidaRect = {0, 0, w/5, h/10};
-    SDL_Rect player = { w/5, (h - ((15*h)/100)/3) - 100 + 5, 110, 100 };
+    SDL_Rect player = { w/5, (h - ((15*h)/100)/3) - 103, 110, 100 };
     
     SDL_Rect chaoR = { 0, h-(ponteR.y + ponteR.h)/15, w, (ponteR.y + ponteR.h)/15};
 
@@ -364,7 +449,18 @@ void runGame(SDL_Window* win, SDL_Renderer* ren) {
     int totalFramesAtaque = 4;
 
     // NPCs
-    addPedinte(&cenarios[0], 3*w/5, h-(ponteR.y+ponteR.h)/15-105, 110, 100);
+    addPedinte(&cenarios[0], 3*w/5, h-(ponteR.y+ponteR.h)/15-103, 110, 100);
+
+	// Checkpoints
+	addCheckpointAnimado(
+	    &cenarios[0],
+	    texCheckpoint,
+	    (SDL_Rect){ 1800, h-(ponteR.y+ponteR.h)/15-163, 390, 160 }, // posição e tamanho do primeiro frame
+	    6,    // número de frames
+	    390,  // largura de cada frame
+	    160,  // altura de cada frame
+	    100   // tempo entre frames em ms (~10 FPS)
+	);
 
     // câmera e estado de cenário
     SDL_Rect camera = {0, 0, w, h};
@@ -390,6 +486,14 @@ void runGame(SDL_Window* win, SDL_Renderer* ren) {
         for (int i = 0; i < cenarios[atual].numPedintes; i++){
         	updatePedinte(&cenarios[atual].pedintes[i], player, agora);
 		}
+		
+		// Atualiza checkpoints
+		float deltaTime = 16.0f; // o tempo decorrido entre frames
+
+		for (int i = 0; i < cenarios[atual].numCheckpoints; i++) {
+		    updateCheckpoint(&cenarios[atual].checkpoints[i], player, deltaTime);
+		}
+
 
         // Animação flor morrendo
         if (animandoFlor >= 0 && agora - ultimoFrameFlor > intervaloFrameFlor) {
@@ -434,8 +538,8 @@ void runGame(SDL_Window* win, SDL_Renderer* ren) {
 
         // --- MOVIMENTO PLAYER (somente se ainda tiver vidas) ---
         int movendo = 0;
-        if (vidas > 0) {
-            // esquerda
+        //if (vidas > 0) {
+        // esquerda
             if (keys[SDL_SCANCODE_LEFT]) {
                 movendo = 1;
                 if (dirPlayer == DIREITA && virando != 1) {
@@ -475,7 +579,7 @@ void runGame(SDL_Window* win, SDL_Renderer* ren) {
                 vely = puloInicial;
                 noChao = 0;
             }
-        }
+        //}
 
         // animação de virada (continua automaticamente)
         if (virando == 1) {
@@ -610,7 +714,12 @@ void runGame(SDL_Window* win, SDL_Renderer* ren) {
         for (int i = 0; i < cenarios[atual].numPedintes; i++){
         	renderPedinte(ren, texPedinte, &cenarios[atual].pedintes[i], camera);
 		}
-    
+		
+		// checkpoints
+		for (int i = 0; i < cenarios[atual].numCheckpoints; i++) {
+		    renderCheckpoint(ren, &cenarios[atual].checkpoints[i], camera);
+		}
+
         // desenha frente cenário
         desenharFrente(ren, &cenarios[atual], camera);
 
@@ -646,6 +755,8 @@ void runGame(SDL_Window* win, SDL_Renderer* ren) {
     SDL_DestroyTexture(sprites);
     SDL_DestroyTexture(texPedinte);
     SDL_DestroyTexture(texFlor);
+    SDL_DestroyTexture(texCheckpoint);
+
 
     SDL_ShowCursor(SDL_ENABLE);
 }
