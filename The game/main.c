@@ -17,6 +17,7 @@
 #define MAX_PEDINTES 16
 
 #define MAX_CHECKPOINTS 8
+#define MAX_ACAMPAMENTOS 8
 
 /* ----------------- ESTRUTURAS ----------------- */
 
@@ -44,6 +45,12 @@ typedef struct{
     float tempoFrame;      // tempo em ms entre frames
     float timer;           // acumulador interno
 } Checkpoint;
+
+typedef struct {
+    SDL_Texture* tex;
+    SDL_Rect pos;
+    int interagindo;    // 1 = se o player estiver próximo/interagindo
+} Acampamento;
 
 enum Direcao { ESQUERDA = -1, DIREITA = 1 };
 enum EstadoInimigo { INIMIGO_PARADO, INIMIGO_LEVANTANDO, INIMIGO_ANDANDO, INIMIGO_PATRULHANDO };
@@ -85,6 +92,9 @@ typedef struct {
     
     Checkpoint checkpoints[MAX_CHECKPOINTS];
     int numCheckpoints;
+    
+    Acampamento acampamentos[MAX_ACAMPAMENTOS];
+    int numAcampamentos;
 
     int posX;       // posição X do início do cenário no "mundo"
     int largura;    // largura total do cenário
@@ -134,6 +144,7 @@ static void initCenario(Cenario* c) {
     c->altura = 1080;
     c->numPedintes = 0;
     c->numCheckpoints = 0;
+    c->numAcampamentos = 0;
 }
 
 static void addParalax(Cenario* c, SDL_Texture* tex, float fator, int posY) {
@@ -150,12 +161,6 @@ static void addPedinte(Cenario* c, int x, int y, int w, int h) {
     if (c->numPedintes < MAX_PEDINTES) {
         initPedinte(&c->pedintes[c->numPedintes++], x, y, w, h);
     }
-}
-
-static void addCheckpoints(Cenario* c, SDL_Texture* tex, SDL_Rect pos){
-	if (c->numCheckpoints < MAX_CHECKPOINTS){
-		c->checkpoints[c->numCheckpoints++] = (Checkpoint){ tex, pos, 0};
-	}
 }
 
 static void addCheckpointAnimado(Cenario* c, SDL_Texture* tex, SDL_Rect pos, int numFrames, int larguraFrame, int alturaFrame, float tempoFrame) {
@@ -175,6 +180,10 @@ static void addCheckpointAnimado(Cenario* c, SDL_Texture* tex, SDL_Rect pos, int
     }
 }
 
+static void addAcampamento(Cenario* c, SDL_Texture* tex, SDL_Rect pos) {
+    if (c->numAcampamentos < MAX_ACAMPAMENTOS)
+        c->acampamentos[c->numAcampamentos++] = (Acampamento){ tex, pos, 0 };
+}
 
 static void desenharCenario(SDL_Renderer* ren, Cenario* c, SDL_Rect camera, int screenW, int screenH,int w,int h) {
     if (!c) return;
@@ -330,14 +339,20 @@ static void renderCheckpoint(SDL_Renderer* ren, Checkpoint* cp, SDL_Rect camera)
     SDL_Rect dest = cp->pos;
     dest.x -= camera.x;
 
-    if (cp->ativado)
-        SDL_SetTextureColorMod(cp->tex, 150, 255, 150);
+    /*if (cp->ativado)
+        //SDL_SetTextureColorMod(cp->tex, 150, 255, 150);
+        printf("Checkpoint funcionando\n");
     else
-        SDL_SetTextureColorMod(cp->tex, 255, 255, 255);
+        SDL_SetTextureColorMod(cp->tex, 255, 255, 255);*/
 
     SDL_RenderCopy(ren, cp->tex, &src, &dest);
 }
 
+static void renderAcampamento(SDL_Renderer* ren, Acampamento* a, SDL_Rect camera) {
+    SDL_Rect dest = a->pos;
+    dest.x -= camera.x;
+    SDL_RenderCopy(ren, a->tex, NULL, &dest);
+}
 
 /* ----------------- FUNÇÃO PRINCIPAL DO JOGO (runGame) ----------------- */
 void runGame(SDL_Window* win, SDL_Renderer* ren) {
@@ -357,7 +372,7 @@ void runGame(SDL_Window* win, SDL_Renderer* ren) {
     SDL_Texture* portao_tex = IMG_LoadTexture(ren, "./src/mapa/ponte-f/portão.png");
     SDL_Texture* ponte_prox = IMG_LoadTexture(ren, "./src/mapa/ponte-f/sala-port.png");
 	SDL_Texture* texCheckpoint = IMG_LoadTexture(ren, "./src/mapa/ponte-f/checkpoint.png");
-
+	SDL_Texture* texAcampamento = IMG_LoadTexture(ren, "./src/mapa/ponte-f/acampamento.png");
     // sala textures (exemplo)
     SDL_Texture* fundo_sala = IMG_LoadTexture(ren, "./src/mapa/sala-p/background.png");
     SDL_Texture* borda_sala = IMG_LoadTexture(ren, "./src/mapa/sala-p/borda.png");
@@ -455,12 +470,14 @@ void runGame(SDL_Window* win, SDL_Renderer* ren) {
 	addCheckpointAnimado(
 	    &cenarios[0],
 	    texCheckpoint,
-	    (SDL_Rect){ 1800, h-(ponteR.y+ponteR.h)/15-163, 390, 160 }, // posição e tamanho do primeiro frame
+	    (SDL_Rect){ 120, h-(ponteR.y+ponteR.h)/15-163, 390, 160 }, // posição e tamanho do primeiro frame
 	    6,    // número de frames
 	    390,  // largura de cada frame
 	    160,  // altura de cada frame
 	    100   // tempo entre frames em ms (~10 FPS)
 	);
+	
+	addAcampamento(&cenarios[0], texAcampamento, (SDL_Rect){ 2500, h-(ponteR.y+ponteR.h)/15-273, 1040, 270 });
 
     // câmera e estado de cenário
     SDL_Rect camera = {0, 0, w, h};
@@ -492,6 +509,18 @@ void runGame(SDL_Window* win, SDL_Renderer* ren) {
 
 		for (int i = 0; i < cenarios[atual].numCheckpoints; i++) {
 		    updateCheckpoint(&cenarios[atual].checkpoints[i], player, deltaTime);
+		}
+		
+		// Interação com acampamento (exemplo: descansar com tecla C)
+		for (int i = 0; i < cenarios[atual].numAcampamentos; i++) {
+		    Acampamento* a = &cenarios[atual].acampamentos[i];
+		    if (SDL_HasIntersection(&player, &a->pos) && keys[SDL_SCANCODE_C]) {
+		        a->interagindo = 1;
+		        printf("Descansando no acampamento...\n");
+		        vidas = 3; // restaura vida
+		    } else {
+		        a->interagindo = 0;
+		    }
 		}
 
 
@@ -695,6 +724,21 @@ void runGame(SDL_Window* win, SDL_Renderer* ren) {
             SDL_SetRenderDrawColor(ren, 0x80, 0x80, 0x80, 0xFF);
             SDL_RenderFillRect(ren, &plataformas[i]);
         }
+        
+        // pedintes
+        for (int i = 0; i < cenarios[atual].numPedintes; i++){
+        	renderPedinte(ren, texPedinte, &cenarios[atual].pedintes[i], camera);
+		}
+		
+		// checkpoints
+		for (int i = 0; i < cenarios[atual].numCheckpoints; i++) {
+		    renderCheckpoint(ren, &cenarios[atual].checkpoints[i], camera);
+		}
+		
+		// acampamentos
+		for (int i = 0; i < cenarios[atual].numAcampamentos; i++)
+		    renderAcampamento(ren, &cenarios[atual].acampamentos[i], camera);
+
 
         // jogador
         SDL_Rect playerScreen = player;
@@ -710,16 +754,7 @@ void runGame(SDL_Window* win, SDL_Renderer* ren) {
             SDL_RenderFillRect(ren, &hitScreen);
         }
 
-        // pedintes
-        for (int i = 0; i < cenarios[atual].numPedintes; i++){
-        	renderPedinte(ren, texPedinte, &cenarios[atual].pedintes[i], camera);
-		}
-		
-		// checkpoints
-		for (int i = 0; i < cenarios[atual].numCheckpoints; i++) {
-		    renderCheckpoint(ren, &cenarios[atual].checkpoints[i], camera);
-		}
-
+        
         // desenha frente cenário
         desenharFrente(ren, &cenarios[atual], camera);
 
@@ -756,6 +791,7 @@ void runGame(SDL_Window* win, SDL_Renderer* ren) {
     SDL_DestroyTexture(texPedinte);
     SDL_DestroyTexture(texFlor);
     SDL_DestroyTexture(texCheckpoint);
+    SDL_DestroyTexture(texAcampamento);
 
 
     SDL_ShowCursor(SDL_ENABLE);
