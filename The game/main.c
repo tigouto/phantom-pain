@@ -338,7 +338,9 @@ static void renderCheckpoint(SDL_Renderer* ren, Checkpoint* cp, SDL_Rect camera)
 
     SDL_Rect dest = cp->pos;
     dest.x -= camera.x;
-
+    
+	// Fazer alguma coisa quando ativar o checkpoint
+	
     /*if (cp->ativado)
         //SDL_SetTextureColorMod(cp->tex, 150, 255, 150);
         printf("Checkpoint funcionando\n");
@@ -516,7 +518,7 @@ void runGame(SDL_Window* win, SDL_Renderer* ren) {
 		    Acampamento* a = &cenarios[atual].acampamentos[i];
 		    if (SDL_HasIntersection(&player, &a->pos) && keys[SDL_SCANCODE_C]) {
 		        a->interagindo = 1;
-		        printf("Descansando no acampamento...\n");
+		        //printf("Descansando no acampamento...\n");
 		        vidas = 3; // restaura vida
 		    } else {
 		        a->interagindo = 0;
@@ -761,15 +763,27 @@ void runGame(SDL_Window* win, SDL_Renderer* ren) {
         // HUD: desenha hud base
         SDL_RenderCopy(ren, hud, NULL, &vidaRect);
 
-        // HUD: flores (animação por flor)
-        for (int i = 0; i < 3; i++) {
-            SDL_Rect florPos = { 15 + i * 70, vidaRect.h - 20, 60, 60 };
-            SDL_Rect frame;
-            if (i < vidas) frame = (SDL_Rect){0, 0, 280, florAltura};
-            else if (i == animandoFlor) frame = (SDL_Rect){280 * frameFlorMorrendo, 0, 280, florAltura};
-            else continue;
-            SDL_RenderCopy(ren, texFlor, &frame, &florPos);
-        }
+        // HUD: flores (animação por flor) — corrigido: verificar animação antes de "i < vidas"
+		for (int i = 0; i < 3; i++) {
+		    SDL_Rect florPos = { 15 + i * 70, vidaRect.h - 20, 60, 60 };
+		    SDL_Rect frame;
+		
+		    // Se esta flor está sendo animada, desenha o frame da animação
+		    if (i == animandoFlor) {
+		        frame = (SDL_Rect){ 280 * frameFlorMorrendo, 0, 280, florAltura };
+		    }
+		    // Caso contrário, se for uma flor "viva", desenha o sprite estático
+		    else if (i < vidas) {
+		        frame = (SDL_Rect){ 0, 0, 280, florAltura };
+		    }
+		    // se não for nem animada nem viva, pula
+		    else {
+		        continue;
+		    }
+		
+		    SDL_RenderCopy(ren, texFlor, &frame, &florPos);
+		}
+
 
         SDL_RenderPresent(ren);
     }
