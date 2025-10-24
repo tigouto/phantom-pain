@@ -244,7 +244,7 @@ static void desenharCenario(SDL_Renderer* ren, Cenario* c, SDL_Rect camera, int 
 
     // Fundo (posicionado da mesma forma do seu código original)
     if (c->fundo) {
-        SDL_Rect fundoR = { (screenW - 3120) / 2, ((screenH - 1560) / 2) + (5 * screenH) / 100, 3120, 1560 };
+        SDL_Rect fundoR = { (screenW - 2990) / 2, ((screenH - 1495) / 2) + (5 * screenH) / 100, 2990, 1495 };
         SDL_RenderCopy(ren, c->fundo, NULL, &fundoR);
     }
 
@@ -941,7 +941,7 @@ int main(int argc, char* args[]) {
     int selecionadoN = 1, selecionadoC = 0, selecionadoS = 0;
     int rodando = 1;
 
-    Mix_Music* musica = Mix_LoadMUS("./src/msc/musica.ogg");
+    Mix_Music* musica = Mix_LoadMUS("./src/msc/pontef.ogg");
     if (!musica) {
         printf("Erro ao carregar música: %s\n", Mix_GetError());
     }
