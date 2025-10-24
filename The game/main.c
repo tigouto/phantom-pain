@@ -19,6 +19,13 @@
 #define MAX_CHECKPOINTS 8
 #define MAX_ACAMPAMENTOS 8
 
+int playerAtacando = 0;
+float tempoAtaque = 0.0f;
+const float duracaoAtaque = 0.25f; // duração do golpe
+int playerDano = 1;
+SDL_Rect hitboxAtaque;
+
+
 /* ----------------- ESTRUTURAS ----------------- */
 
 typedef struct {
@@ -49,11 +56,46 @@ typedef struct{
 typedef struct {
     SDL_Texture* tex;
     SDL_Rect pos;
+    int ativado;
+    
+    int frameAtual;
+    int numFrames;
+    int larguraFrame;
+    int alturaFrame;
     int interagindo;    // 1 = se o player estiver próximo/interagindo
 } Acampamento;
 
 enum Direcao { ESQUERDA = -1, DIREITA = 1 };
-enum EstadoInimigo { INIMIGO_PARADO, INIMIGO_LEVANTANDO, INIMIGO_ANDANDO, INIMIGO_PATRULHANDO };
+
+enum EstadoInimigo { 
+	INIMIGO_PARADO, 
+	INIMIGO_LEVANTANDO, 
+	INIMIGO_ANDANDO, 
+	INIMIGO_PATRULHANDO,
+	//INIMIGO_ATACANDO,
+} ;
+
+/*typedef struct {
+    float x, y;
+    int direcao; // 1 = direita, -1 = esquerda
+    int ativo;
+
+    int vidaAtual;
+    int vidaMax;
+    int dano;
+    TipoInimigo tipo;
+    EstadoInimigo estado;
+
+    SDL_Rect hitbox;
+    SDL_Texture* tex;
+    int frameAtual;
+    int totalFrames;
+    float tempoFrame;
+} Inimigo;*/
+
+typedef enum{
+	INIMIGO_PEDINTE
+} TipoInimigo;
 
 typedef struct {
     SDL_Rect pos;           // posição e tamanho do sprite no mundo
@@ -180,9 +222,21 @@ static void addCheckpointAnimado(Cenario* c, SDL_Texture* tex, SDL_Rect pos, int
     }
 }
 
-static void addAcampamento(Cenario* c, SDL_Texture* tex, SDL_Rect pos) {
-    if (c->numAcampamentos < MAX_ACAMPAMENTOS)
-        c->acampamentos[c->numAcampamentos++] = (Acampamento){ tex, pos, 0 };
+static void addAcampamento(Cenario* c, SDL_Texture* tex, SDL_Rect pos, int numFrames, int larguraFrame, int alturaFrame) {
+    if (c->numAcampamentos < MAX_ACAMPAMENTOS){
+    	Acampamento ac = {
+			.tex = tex,
+			.pos = pos,
+			.ativado = 0,
+			.frameAtual = 0,
+			.numFrames = numFrames,
+			.larguraFrame = larguraFrame,
+			.alturaFrame = alturaFrame,
+			.interagindo = 0
+		};
+		c->acampamentos[c->numAcampamentos++] = ac;
+	}
+        
 }
 
 static void desenharCenario(SDL_Renderer* ren, Cenario* c, SDL_Rect camera, int screenW, int screenH,int w,int h) {
@@ -350,10 +404,29 @@ static void renderCheckpoint(SDL_Renderer* ren, Checkpoint* cp, SDL_Rect camera)
     SDL_RenderCopy(ren, cp->tex, &src, &dest);
 }
 
-static void renderAcampamento(SDL_Renderer* ren, Acampamento* a, SDL_Rect camera) {
-    SDL_Rect dest = a->pos;
+static void updateAcampamento(Acampamento* ac, SDL_Rect player){
+	if(!ac->ativado && SDL_HasIntersection(&player, &ac->pos)){
+		ac->ativado = 1;
+		ac->frameAtual++;
+	}
+	if(ac->ativado && !SDL_HasIntersection(&player, &ac->pos)){
+		ac->ativado = 0;
+		ac->frameAtual = 0;
+	}
+	
+}
+
+static void renderAcampamento(SDL_Renderer* ren, Acampamento* ac, SDL_Rect camera) {
+    SDL_Rect src = {
+        ac->frameAtual * ac->larguraFrame,
+        0,
+        ac->larguraFrame,
+        ac->alturaFrame
+    };
+    
+	SDL_Rect dest = ac->pos;
     dest.x -= camera.x;
-    SDL_RenderCopy(ren, a->tex, NULL, &dest);
+    SDL_RenderCopy(ren, ac->tex, &src, &dest);
 }
 
 /* ----------------- FUNÇÃO PRINCIPAL DO JOGO (runGame) ----------------- */
@@ -479,7 +552,14 @@ void runGame(SDL_Window* win, SDL_Renderer* ren) {
 	    100   // tempo entre frames em ms (~10 FPS)
 	);
 	
-	addAcampamento(&cenarios[0], texAcampamento, (SDL_Rect){ 2500, h-(ponteR.y+ponteR.h)/15-273, 1040, 270 });
+	addAcampamento(
+		&cenarios[0], 
+		texAcampamento, 
+		(SDL_Rect){ 2500, h-(ponteR.y+ponteR.h)/15-273, 520, 270 },
+		2,   // numero de frames
+		520, // largura
+		270  // altura
+	);
 
     // câmera e estado de cenário
     SDL_Rect camera = {0, 0, w, h};
@@ -513,15 +593,19 @@ void runGame(SDL_Window* win, SDL_Renderer* ren) {
 		    updateCheckpoint(&cenarios[atual].checkpoints[i], player, deltaTime);
 		}
 		
+		for (int i = 0; i < cenarios[atual].numAcampamentos; i++) {
+		    updateAcampamento(&cenarios[atual].acampamentos[i], player);
+		}
+		
 		// Interação com acampamento (exemplo: descansar com tecla C)
 		for (int i = 0; i < cenarios[atual].numAcampamentos; i++) {
-		    Acampamento* a = &cenarios[atual].acampamentos[i];
-		    if (SDL_HasIntersection(&player, &a->pos) && keys[SDL_SCANCODE_C]) {
-		        a->interagindo = 1;
+		    Acampamento* ac = &cenarios[atual].acampamentos[i];
+		    if (SDL_HasIntersection(&player, &ac->pos) && keys[SDL_SCANCODE_C]) {
+		        ac->interagindo = 1;
 		        //printf("Descansando no acampamento...\n");
 		        vidas = 3; // restaura vida
 		    } else {
-		        a->interagindo = 0;
+		        ac->interagindo = 0;
 		    }
 		}
 
