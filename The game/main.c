@@ -497,9 +497,9 @@ void runGame(SDL_Window* win, SDL_Renderer* ren) {
     SDL_ShowCursor(SDL_DISABLE);
 
     SDL_Rect vidaRect = {0, 0, w/5, h/10};
-    SDL_Rect player = { w/5, (h - ((15*h)/100)/3) - 103, 110, 100 };
+    SDL_Rect player = { w/5, (h - ((15*h)/100)/3) - 105, 110, 100 };
     
-    SDL_Rect chaoR = { 0, h-(ponteR.y + ponteR.h)/15, w, (ponteR.y + ponteR.h)/15};
+    SDL_Rect chaoR = { 0, h-(ponteR.y + ponteR.h)/15 + 2, w, (ponteR.y + ponteR.h)/15};
 
     // Plataformas (do teste.c)
     int numPlataformas = 0;
@@ -515,7 +515,7 @@ void runGame(SDL_Window* win, SDL_Renderer* ren) {
     Uint32 ultimoFrameFlor = 0;
     int intervaloFrameFlor = 120;
     int totalFramesFlor = 13;
-    int florAltura = 210;
+    int florAltura = 60;
     int invulneravel = 0;
     Uint32 tempoInvulneravel = 0;
 
@@ -538,9 +538,6 @@ void runGame(SDL_Window* win, SDL_Renderer* ren) {
     int intervaloFrameAtaque = 100;
     int totalFramesAtaque = 4;
 
-    // NPCs
-    addPedinte(&cenarios[0], 3*w/5, h-(ponteR.y+ponteR.h)/15-103, 110, 100);
-
 	// Checkpoints
 	addCheckpointAnimado(
 	    &cenarios[0],
@@ -560,6 +557,9 @@ void runGame(SDL_Window* win, SDL_Renderer* ren) {
 		520, // largura
 		270  // altura
 	);
+
+	// NPCs
+    addPedinte(&cenarios[0], 3*w/5, h-(ponteR.y+ponteR.h)/15-104, 110, 100);
 
     // câmera e estado de cenário
     SDL_Rect camera = {0, 0, w, h};
@@ -810,11 +810,6 @@ void runGame(SDL_Window* win, SDL_Renderer* ren) {
             SDL_SetRenderDrawColor(ren, 0x80, 0x80, 0x80, 0xFF);
             SDL_RenderFillRect(ren, &plataformas[i]);
         }
-        
-        // pedintes
-        for (int i = 0; i < cenarios[atual].numPedintes; i++){
-        	renderPedinte(ren, texPedinte, &cenarios[atual].pedintes[i], camera);
-		}
 		
 		// checkpoints
 		for (int i = 0; i < cenarios[atual].numCheckpoints; i++) {
@@ -825,6 +820,10 @@ void runGame(SDL_Window* win, SDL_Renderer* ren) {
 		for (int i = 0; i < cenarios[atual].numAcampamentos; i++)
 		    renderAcampamento(ren, &cenarios[atual].acampamentos[i], camera);
 
+		// pedintes
+        for (int i = 0; i < cenarios[atual].numPedintes; i++){
+        	renderPedinte(ren, texPedinte, &cenarios[atual].pedintes[i], camera);
+		}
 
         // jogador
         SDL_Rect playerScreen = player;
@@ -849,16 +848,16 @@ void runGame(SDL_Window* win, SDL_Renderer* ren) {
 
         // HUD: flores (animação por flor) — corrigido: verificar animação antes de "i < vidas"
 		for (int i = 0; i < 3; i++) {
-		    SDL_Rect florPos = { 15 + i * 70, vidaRect.h - 20, 60, 60 };
+		    SDL_Rect florPos = { w/100 + i * w/25, vidaRect.h - 20, vidaRect.h/2, vidaRect.h/2 };
 		    SDL_Rect frame;
 		
 		    // Se esta flor está sendo animada, desenha o frame da animação
 		    if (i == animandoFlor) {
-		        frame = (SDL_Rect){ 280 * frameFlorMorrendo, 0, 280, florAltura };
+		        frame = (SDL_Rect){ 80 * frameFlorMorrendo, 0, 80, florAltura };
 		    }
 		    // Caso contrário, se for uma flor "viva", desenha o sprite estático
 		    else if (i < vidas) {
-		        frame = (SDL_Rect){ 0, 0, 280, florAltura };
+		        frame = (SDL_Rect){ 0, 0, 80, florAltura };
 		    }
 		    // se não for nem animada nem viva, pula
 		    else {
