@@ -13,7 +13,6 @@
 
 #define RECUO_PEDINTE 100
 #define TEMPO_INVULNERAVEL 1000 // ms
-
 #define MAX_PEDINTES 16
 
 #define MAX_CHECKPOINTS 8
@@ -413,7 +412,6 @@ static void updateAcampamento(Acampamento* ac, SDL_Rect player){
 		ac->ativado = 0;
 		ac->frameAtual = 0;
 	}
-	
 }
 
 static void renderAcampamento(SDL_Renderer* ren, Acampamento* ac, SDL_Rect camera) {
@@ -433,9 +431,9 @@ static void renderAcampamento(SDL_Renderer* ren, Acampamento* ac, SDL_Rect camer
 void runGame(SDL_Window* win, SDL_Renderer* ren) {
     // --- Texturas básicas (sprites, HUD, pedinte, flor) ---
     SDL_Texture* sprites = IMG_LoadTexture(ren, "./src/entidades/ss.png");
-    SDL_Texture* hud     = IMG_LoadTexture(ren, "./src/mapa/hud.png");
+    SDL_Texture* hud = IMG_LoadTexture(ren, "./src/mapa/hud.png");
     SDL_Texture* texPedinte = IMG_LoadTexture(ren, "./src/entidades/ss pedinte.png");
-    SDL_Texture* texFlor = IMG_LoadTexture(ren, "./src/entidades/ss flor.png"); // novo
+    SDL_Texture* texFlor = IMG_LoadTexture(ren, "./src/mapa/ss flor.png"); // novo
 
     assert(sprites && hud && texPedinte && texFlor);
 
@@ -486,10 +484,10 @@ void runGame(SDL_Window* win, SDL_Renderer* ren) {
     cenarios[1].largura = 1155;
     cenarios[1].altura = h;
     
-	addAtras(&cenarios[1], fundo_sala, (SDL_Rect){-125,0,w,h});
-    addAtras(&cenarios[1], atras_sala, (SDL_Rect){-125,0,w,h});
-    addAtras(&cenarios[1], frente_sala, (SDL_Rect){-125,0,w,h});
-    addFrente(&cenarios[1], borda_sala, (SDL_Rect){-125,0,w,h});
+	addAtras(&cenarios[1], fundo_sala, (SDL_Rect){-(39.84f*w/100),0,w,h});
+    addAtras(&cenarios[1], atras_sala, (SDL_Rect){-(39.84f*w/100),0,w,h});
+    addAtras(&cenarios[1], frente_sala, (SDL_Rect){-(39.84f*w/100),0,w,h});
+    addFrente(&cenarios[1], borda_sala, (SDL_Rect){-(39.84f*w/100),0,w,h});
     
 	totalCenarios++;
 
@@ -530,13 +528,20 @@ void runGame(SDL_Window* win, SDL_Renderer* ren) {
     // ataque player
     int atacando = 0;
     Uint32 tempoAtaque = 0;
+    int pulando = 0;
+    
     Uint32 duracaoHitbox = 300;
     Uint32 intervaloEntreAtaques = 800;
     SDL_Rect hitboxPlayer = {0,0,0,0};
+    SDL_Rect puloPlayer = {0,0,0,0};
     int frameAtaque = 0;
+    int framePulo = 0;
     Uint32 ultimoFrameAtaque = 0;
+    Uint32 ultimoFramePulo = 0;
     int intervaloFrameAtaque = 100;
     int totalFramesAtaque = 4;
+    int intervaloFramePulo = 100;
+    int totalFramesPulo = 4;
 
 	// Checkpoints
 	addCheckpointAnimado(
@@ -693,6 +698,16 @@ void runGame(SDL_Window* win, SDL_Renderer* ren) {
             if (keys[SDL_SCANCODE_Z] && noChao) {
                 vely = puloInicial;
                 noChao = 0;
+                if (agora - ultimoFramePulo > intervaloFramePulo) {
+                	ultimoFramePulo = agora;
+                	framePulo++;
+                	if (framePulo >= totalFramesPulo) pulando = 0;
+            	}
+            	// hitbox depende da direção
+            	if (dirPlayer == DIREITA)
+                	puloPlayer = (SDL_Rect){player.x + player.w, player.y + 30, 60, 40};
+            	else
+                	puloPlayer = (SDL_Rect){player.x - 60, player.y + 30, 60, 40};
             }
         //}
 
