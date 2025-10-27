@@ -48,8 +48,8 @@ typedef struct{
     int numFrames;
     int larguraFrame;
     int alturaFrame;
-    float tempoFrame;      // tempo em ms entre frames
-    float timer;           // acumulador interno
+    float tempoFrame;      
+    float timer;          
 } Checkpoint;
 
 typedef struct {
@@ -137,9 +137,9 @@ typedef struct {
     Acampamento acampamentos[MAX_ACAMPAMENTOS];
     int numAcampamentos;
 
-    int posX;       // posição X do início do cenário no "mundo"
-    int largura;    // largura total do cenário
-    int altura;     // altura (padrão pode ser a altura da janela)
+    int posX;       
+    int largura;  
+    int altura;     
 } Cenario;
 
 /* --- Prototipagem de funções do Cenario --- */
@@ -478,18 +478,23 @@ void runGame(SDL_Window* win, SDL_Renderer* ren) {
     
 	totalCenarios++;
 
-    initCenario(&cenarios[1]);
-    cenarios[1].fundo = fundo_sala;
-    cenarios[1].posX = cenarios[0].posX + cenarios[0].largura;
-    cenarios[1].largura = 1155;
-    cenarios[1].altura = h;
-    
-	addAtras(&cenarios[1], fundo_sala, (SDL_Rect){-(39.84f*w/100),0,w,h});
-    addAtras(&cenarios[1], atras_sala, (SDL_Rect){-(39.84f*w/100),0,w,h});
-    addAtras(&cenarios[1], frente_sala, (SDL_Rect){-(39.84f*w/100),0,w,h});
-    addFrente(&cenarios[1], borda_sala, (SDL_Rect){-(39.84f*w/100),0,w,h});
-    
-	totalCenarios++;
+   initCenario(&cenarios[1]);
+cenarios[1].fundo = fundo_sala;
+
+// começa logo após o primeiro cenário
+cenarios[1].posX = cenarios[0].posX + cenarios[0].largura;
+
+// largura igual à tela
+cenarios[1].largura = w;
+cenarios[1].altura = h;
+
+addAtras(&cenarios[1], fundo_sala, (SDL_Rect){0, 0, w, h});
+addAtras(&cenarios[1], atras_sala, (SDL_Rect){0, 0, w, h});
+addAtras(&cenarios[1], frente_sala, (SDL_Rect){0, 0, w, h});
+addFrente(&cenarios[1], borda_sala, (SDL_Rect){0, 0, w, h});
+
+totalCenarios++;
+
 
     // --- Jogador / HUD / Física / Ataque (integração do teste.c) ---
     SDL_ShowCursor(SDL_DISABLE);
@@ -798,8 +803,9 @@ void runGame(SDL_Window* win, SDL_Renderer* ren) {
         if (player.x > cenarios[atual].posX + cenarios[atual].largura && (atual + 1) < totalCenarios) {
             fade_out_in(ren, w, h, 1);
             atual++;
-            player.x = cenarios[atual].posX + 50;
-            camera.x = player.x + player.w / 2 - w / 2;
+            player.x = cenarios[atual].posX;
+            camera.x = 0;
+            camera.y = 0;
             if (camera.x < cenarios[atual].posX) camera.x = cenarios[atual].posX;
             if (camera.x > cenarios[atual].posX + cenarios[atual].largura - w)
                 camera.x = cenarios[atual].posX + cenarios[atual].largura - w;
