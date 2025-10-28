@@ -27,6 +27,8 @@ SDL_Rect hitboxAtaque;
 
 /* ----------------- ESTRUTURAS ----------------- */
 
+
+
 typedef struct {
     SDL_Texture* tex;
     float fator;
@@ -117,6 +119,19 @@ static void initPedinte(Pedinte* p, int x, int y, int w, int h);
 static void updatePedinte(Pedinte* p, SDL_Rect playerRect, Uint32 agora);
 static void renderPedinte(SDL_Renderer* ren, SDL_Texture* tex, Pedinte* p, SDL_Rect camera);
 
+typedef enum {
+    TIPO_ELEMENTO_CHECKPOINT,
+    TIPO_ELEMENTO_ACAMPAMENTO
+} TipoElemento;
+
+typedef struct {
+    TipoElemento tipo;
+    union {
+        Checkpoint checkpoint;
+        Acampamento acampamento;
+    };
+} ElementoCenario;
+
 typedef struct {
     SDL_Texture* fundo;
     Paralax paralax[MAX_PARALAX];
@@ -131,16 +146,15 @@ typedef struct {
     Pedinte pedintes[MAX_PEDINTES];
     int numPedintes;
     
-    Checkpoint checkpoints[MAX_CHECKPOINTS];
-    int numCheckpoints;
-    
-    Acampamento acampamentos[MAX_ACAMPAMENTOS];
-    int numAcampamentos;
+    ElementoCenario elementos[MAX_ELEMENTOS];
+	int numElementos;
 
     int posX;       
     int largura;  
     int altura;     
 } Cenario;
+
+
 
 /* --- Prototipagem de funções do Cenario --- */
 static void initCenario(Cenario* c);
@@ -184,8 +198,6 @@ static void initCenario(Cenario* c) {
     c->largura = 4000;
     c->altura = 1080;
     c->numPedintes = 0;
-    c->numCheckpoints = 0;
-    c->numAcampamentos = 0;
 }
 
 static void addParalax(Cenario* c, SDL_Texture* tex, float fator, int posY) {
@@ -204,9 +216,11 @@ static void addPedinte(Cenario* c, int x, int y, int w, int h) {
     }
 }
 
-static void addCheckpointAnimado(Cenario* c, SDL_Texture* tex, SDL_Rect pos, int numFrames, int larguraFrame, int alturaFrame, float tempoFrame) {
-    if (c->numCheckpoints < MAX_CHECKPOINTS) {
-        Checkpoint cp = {
+static void addCheckpointElemento(Cenario* c, SDL_Texture* tex, SDL_Rect pos, int numFrames, int larguraFrame, int alturaFrame, float tempoFrame) {
+    if (c->numElementos < MAX_ELEMENTOS) {
+        ElementoCenario e;
+        e.tipo = TIPO_ELEMENTO_CHECKPOINT;
+        e.checkpoint = (Checkpoint){
             .tex = tex,
             .pos = pos,
             .ativado = 0,
@@ -217,26 +231,29 @@ static void addCheckpointAnimado(Cenario* c, SDL_Texture* tex, SDL_Rect pos, int
             .tempoFrame = tempoFrame,
             .timer = 0.0f
         };
-        c->checkpoints[c->numCheckpoints++] = cp;
+        c->elementos[c->numElementos++] = e;
     }
 }
 
-static void addAcampamento(Cenario* c, SDL_Texture* tex, SDL_Rect pos, int numFrames, int larguraFrame, int alturaFrame) {
-    if (c->numAcampamentos < MAX_ACAMPAMENTOS){
-    	Acampamento ac = {
-			.tex = tex,
-			.pos = pos,
-			.ativado = 0,
-			.frameAtual = 0,
-			.numFrames = numFrames,
-			.larguraFrame = larguraFrame,
-			.alturaFrame = alturaFrame,
-			.interagindo = 0
-		};
-		c->acampamentos[c->numAcampamentos++] = ac;
-	}
-        
+
+static void addAcampamentoElemento(Cenario* c, SDL_Texture* tex, SDL_Rect pos, int numFrames, int larguraFrame, int alturaFrame) {
+    if (c->numElementos < MAX_ELEMENTOS) {
+        ElementoCenario e;
+        e.tipo = TIPO_ELEMENTO_ACAMPAMENTO;
+        e.acampamento = (Acampamento){
+            .tex = tex,
+            .pos = pos,
+            .ativado = 0,
+            .frameAtual = 0,
+            .numFrames = numFrames,
+            .larguraFrame = larguraFrame,
+            .alturaFrame = alturaFrame,
+            .interagindo = 0
+        };
+        c->elementos[c->numElementos++] = e;
+    }
 }
+
 
 static void desenharCenario(SDL_Renderer* ren, Cenario* c, SDL_Rect camera, int screenW, int screenH,int w,int h) {
     if (!c) return;
@@ -427,6 +444,44 @@ static void renderAcampamento(SDL_Renderer* ren, Acampamento* ac, SDL_Rect camer
     SDL_RenderCopy(ren, ac->tex, &src, &dest);
 }
 
+static void updateElementos(Cenario* c, SDL_Rect player, const Uint8* keys, float deltaTime, int* vidas) {
+    for (int i = 0; i < c->numElementos; i++) {
+        ElementoCenario* e = &c->elementos[i];
+        switch (e->tipo) {
+            case TIPO_ELEMENTO_CHECKPOINT:
+                updateCheckpoint(&e->checkpoint, player, deltaTime);
+                break;
+            case TIPO_ELEMENTO_ACAMPAMENTO:
+                if (SDL_HasIntersection(&player, &e->acampamento.pos) && keys[SDL_SCANCODE_C]) {
+                    e->acampamento.interagindo = 1;
+                    *vidas = 3;
+                } else {
+                    e->acampamento.interagindo = 0;
+                }
+                break;
+            default:
+                break;
+        }
+    }
+}
+
+
+static void renderElementos(SDL_Renderer* ren, Cenario* c, SDL_Rect camera) {
+    for (int i = 0; i < c->numElementos; i++) {
+        ElementoCenario* e = &c->elementos[i];
+        switch (e->tipo) {
+            case TIPO_ELEMENTO_CHECKPOINT:
+                renderCheckpoint(ren, &e->checkpoint, camera);
+                break;
+            case TIPO_ELEMENTO_ACAMPAMENTO:
+                renderAcampamento(ren, &e->acampamento, camera);
+                break;
+            default: break;
+        }
+    }
+}
+
+
 /* ----------------- FUNÇÃO PRINCIPAL DO JOGO (runGame) ----------------- */
 void runGame(SDL_Window* win, SDL_Renderer* ren) {
     // --- Texturas básicas (sprites, HUD, pedinte, flor) ---
@@ -549,7 +604,7 @@ totalCenarios++;
     int totalFramesPulo = 4;
 
 	// Checkpoints
-	addCheckpointAnimado(
+	addCheckpointElemento(
 	    &cenarios[0],
 	    texCheckpoint,
 	    (SDL_Rect){ 120, h-(ponteR.y+ponteR.h)/15-163, 390, 160 }, // posição e tamanho do primeiro frame
@@ -559,7 +614,7 @@ totalCenarios++;
 	    100   // tempo entre frames em ms (~10 FPS)
 	);
 	
-	addAcampamento(
+	addAcampamentoElemento(
 		&cenarios[0], 
 		texAcampamento, 
 		(SDL_Rect){ 2500, h-(ponteR.y+ponteR.h)/15-273, 520, 270 },
@@ -599,25 +654,7 @@ totalCenarios++;
 		// Atualiza checkpoints
 		float deltaTime = 16.0f; // o tempo decorrido entre frames
 
-		for (int i = 0; i < cenarios[atual].numCheckpoints; i++) {
-		    updateCheckpoint(&cenarios[atual].checkpoints[i], player, deltaTime);
-		}
-		
-		for (int i = 0; i < cenarios[atual].numAcampamentos; i++) {
-		    updateAcampamento(&cenarios[atual].acampamentos[i], player);
-		}
-		
-		// Interação com acampamento (exemplo: descansar com tecla C)
-		for (int i = 0; i < cenarios[atual].numAcampamentos; i++) {
-		    Acampamento* ac = &cenarios[atual].acampamentos[i];
-		    if (SDL_HasIntersection(&player, &ac->pos) && keys[SDL_SCANCODE_C]) {
-		        ac->interagindo = 1;
-		        //printf("Descansando no acampamento...\n");
-		        vidas = 3; // restaura vida
-		    } else {
-		        ac->interagindo = 0;
-		    }
-		}
+		updateElementos(&cenarios[atual], player, keys, deltaTime, &vidas);
 
 
         // Animação flor morrendo
@@ -832,14 +869,7 @@ totalCenarios++;
             SDL_RenderFillRect(ren, &plataformas[i]);
         }
 		
-		// checkpoints
-		for (int i = 0; i < cenarios[atual].numCheckpoints; i++) {
-		    renderCheckpoint(ren, &cenarios[atual].checkpoints[i], camera);
-		}
-		
-		// acampamentos
-		for (int i = 0; i < cenarios[atual].numAcampamentos; i++)
-		    renderAcampamento(ren, &cenarios[atual].acampamentos[i], camera);
+		renderElementos(ren, &cenarios[atual], camera);
 
 		// pedintes
         for (int i = 0; i < cenarios[atual].numPedintes; i++){
