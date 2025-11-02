@@ -20,6 +20,7 @@
 
 int playerAtacando = 0;
 float tempoAtaque = 0.0f;
+float tempoPulo = 0.0f;
 const float duracaoAtaque = 0.25f; // duração do golpe
 int playerDano = 1;
 SDL_Rect hitboxAtaque;
@@ -75,24 +76,6 @@ enum EstadoInimigo {
 	INIMIGO_PATRULHANDO,
 	//INIMIGO_ATACANDO,
 } ;
-
-/*typedef struct {
-    float x, y;
-    int direcao; // 1 = direita, -1 = esquerda
-    int ativo;
-
-    int vidaAtual;
-    int vidaMax;
-    int dano;
-    TipoInimigo tipo;
-    EstadoInimigo estado;
-
-    SDL_Rect hitbox;
-    SDL_Texture* tex;
-    int frameAtual;
-    int totalFrames;
-    float tempoFrame;
-} Inimigo;*/
 
 typedef enum{
 	INIMIGO_PEDINTE
@@ -411,12 +394,6 @@ static void renderCheckpoint(SDL_Renderer* ren, Checkpoint* cp, SDL_Rect camera)
     
 	// Fazer alguma coisa quando ativar o checkpoint
 	
-    /*if (cp->ativado)
-        //SDL_SetTextureColorMod(cp->tex, 150, 255, 150);
-        printf("Checkpoint funcionando\n");
-    else
-        SDL_SetTextureColorMod(cp->tex, 255, 255, 255);*/
-
     SDL_RenderCopy(ren, cp->tex, &src, &dest);
 }
 
@@ -452,6 +429,13 @@ static void updateElementos(Cenario* c, SDL_Rect player, const Uint8* keys, floa
                 updateCheckpoint(&e->checkpoint, player, deltaTime);
                 break;
             case TIPO_ELEMENTO_ACAMPAMENTO:
+            	if(SDL_HasIntersection(&player, &e->acampamento.pos)){
+            		e->acampamento.frameAtual = 1;
+				}
+				if(!SDL_HasIntersection(&player, &e->acampamento.pos)){
+            		e->acampamento.frameAtual = 0;
+				}
+            	
                 if (SDL_HasIntersection(&player, &e->acampamento.pos) && keys[SDL_SCANCODE_C]) {
                     e->acampamento.interagindo = 1;
                     *vidas = 3;
@@ -485,7 +469,7 @@ static void renderElementos(SDL_Renderer* ren, Cenario* c, SDL_Rect camera) {
 /* ----------------- FUNÇÃO PRINCIPAL DO JOGO (runGame) ----------------- */
 void runGame(SDL_Window* win, SDL_Renderer* ren) {
     // --- Texturas básicas (sprites, HUD, pedinte, flor) ---
-    SDL_Texture* sprites = IMG_LoadTexture(ren, "./src/entidades/ss.png");
+    SDL_Texture* sprites = IMG_LoadTexture(ren, "./src/entidades/ss reaper.png");
     SDL_Texture* hud = IMG_LoadTexture(ren, "./src/mapa/hud.png");
     SDL_Texture* texPedinte = IMG_LoadTexture(ren, "./src/entidades/ss pedinte.png");
     SDL_Texture* texFlor = IMG_LoadTexture(ren, "./src/mapa/ss flor.png"); // novo
@@ -600,7 +584,7 @@ totalCenarios++;
     Uint32 ultimoFramePulo = 0;
     int intervaloFrameAtaque = 100;
     int totalFramesAtaque = 4;
-    int intervaloFramePulo = 100;
+    int intervaloFramePulo = 200;
     int totalFramesPulo = 4;
 
 	// Checkpoints
@@ -624,7 +608,7 @@ totalCenarios++;
 	);
 
 	// NPCs
-    addPedinte(&cenarios[0], 3*w/5, h-(ponteR.y+ponteR.h)/15-104, 110, 100);
+    addPedinte(&cenarios[0], 3*w/5, h-(ponteR.y+ponteR.h)/6.2f, 110, 100);
 
     // câmera e estado de cenário
     SDL_Rect camera = {0, 0, w, h};
@@ -700,58 +684,60 @@ totalCenarios++;
 
         // --- MOVIMENTO PLAYER (somente se ainda tiver vidas) ---
         int movendo = 0;
-        //if (vidas > 0) {
-        // esquerda
-            if (keys[SDL_SCANCODE_LEFT]) {
-                movendo = 1;
-                if (dirPlayer == DIREITA && virando != 1) {
-                    virando = 1; frameVirada = 0; ultimoFrameTroca = agora;
-                }
-                if (atual != 0 || player.x > 55) player.x -= 13;
-                dirPlayer = ESQUERDA;
-                if (virando == 0 && !atacando) {
-                    if (agora - ultimoFrameTroca > intervaloFrame) {
-                        ultimoFrameTroca = agora;
-                        frameIE++;
-                        if (frameIE > 3) frameIE = 0;
-                    }
-                    f = (SDL_Rect){230 * frameIE, 210 * 2, 230, 210};
-                }
+        
+        if (keys[SDL_SCANCODE_LEFT]) {
+            movendo = 1;
+            if (dirPlayer == DIREITA && virando != 1) {
+                virando = 1; frameVirada = 0; ultimoFrameTroca = agora;
             }
-            // direita
-            else if (keys[SDL_SCANCODE_RIGHT]) {
-                movendo = 1;
-                if (dirPlayer == ESQUERDA && virando != 2) {
-                    virando = 2; frameVirada = 0; ultimoFrameTroca = agora;
+            if (atual != 0 || player.x > 55) player.x -= 13;
+            dirPlayer = ESQUERDA;
+            if (virando == 0 && !atacando) {
+                if (agora - ultimoFrameTroca > intervaloFrame) {
+                    ultimoFrameTroca = agora;
+                    frameIE++;
+                    if (frameIE > 3) frameIE = 0;
                 }
-                player.x += 13;
-                dirPlayer = DIREITA;
-                if (virando == 0 && !atacando) {
-                    if (agora - ultimoFrameTroca > intervaloFrame) {
-                        ultimoFrameTroca = agora;
-                        frameID++;
-                        if (frameID > 3) frameID = 0;
-                    }
-                    f = (SDL_Rect){230 * frameID, 0, 230, 210};
-                }
+                f = (SDL_Rect){230 * frameIE, 210 * 2, 230, 210};
             }
+        }
+        // direita
+        else if (keys[SDL_SCANCODE_RIGHT]) {
+            movendo = 1;
+            if (dirPlayer == ESQUERDA && virando != 2) {
+                virando = 2; frameVirada = 0; ultimoFrameTroca = agora;
+            }
+            player.x += 13;
+            dirPlayer = DIREITA;
+            if (virando == 0 && !atacando) {
+                if (agora - ultimoFrameTroca > intervaloFrame) {
+                    ultimoFrameTroca = agora;
+                    frameID++;
+                    if (frameID > 3) frameID = 0;
+                }
+                f = (SDL_Rect){230 * frameID, 0, 230, 210};
+            }
+        }
 
-            // pulo
-            if (keys[SDL_SCANCODE_Z] && noChao) {
-                vely = puloInicial;
+        // pulo
+        if (keys[SDL_SCANCODE_Z] && noChao) {
+        	if (!pulando){
+        		vely = puloInicial;
                 noChao = 0;
-                if (agora - ultimoFramePulo > intervaloFramePulo) {
-                	ultimoFramePulo = agora;
-                	framePulo++;
-                	if (framePulo >= totalFramesPulo) pulando = 0;
-            	}
-            	// hitbox depende da direção
-            	if (dirPlayer == DIREITA)
-                	puloPlayer = (SDL_Rect){player.x + player.w, player.y + 30, 60, 40};
-            	else
-                	puloPlayer = (SDL_Rect){player.x - 60, player.y + 30, 60, 40};
+                pulando = 1;
+                tempoPulo = agora;
+                framePulo = 0;
+                ultimoFramePulo = tempoPulo;
+			}
+    	}
+    	
+    	if (pulando) {
+            if (agora - ultimoFramePulo > intervaloFramePulo) {
+                ultimoFramePulo = agora;
+                framePulo++;
+                if (framePulo >= totalFramesPulo) pulando = 0;
             }
-        //}
+		}
 
         // animação de virada (continua automaticamente)
         if (virando == 1) {
@@ -779,6 +765,11 @@ totalCenarios++;
         if (atacando) {
             int linhaAtaque = (dirPlayer == DIREITA) ? 4 : 5; // supondo linhas 4/5
             f = (SDL_Rect){230 * (frameAtaque % totalFramesAtaque), 210 * linhaAtaque, 230, 210};
+        }
+        
+        if (pulando) {
+            int linhaPulo = (dirPlayer == DIREITA) ? 4 : 5; // supondo linhas 4/5
+            f = (SDL_Rect){230 * (framePulo % totalFramesPulo), 210 * linhaPulo, 230, 210};
         }
 
         // física e plataformas
