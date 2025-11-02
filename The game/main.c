@@ -95,6 +95,8 @@ typedef struct {
     int limiteEsq, limiteDir;  // área de patrulha
     
     int vidaPedinte;
+    int ativo;
+    int yBase;
 } Pedinte;
 
 /* Prototipagem das funções do Pedinte */
@@ -303,6 +305,8 @@ static void initPedinte(Pedinte* p, int x, int y, int w, int h) {
     p->distanciaVisao = 400;
     p->limiteEsq = x - 150;
     p->limiteDir = x + 150;
+    p->ativo = 1;
+    p->yBase = y;
 }
 
 static void updatePedinte(Pedinte* p, SDL_Rect playerRect, Uint32 agora) {
@@ -328,9 +332,12 @@ static void updatePedinte(Pedinte* p, SDL_Rect playerRect, Uint32 agora) {
             else p->estado = INIMIGO_ANDANDO;
         }
         p->frameRect = (SDL_Rect){210 * p->frameAtual, 0, 210, 170};
-    } else if (p->estado == INIMIGO_ANDANDO) {
+    } if (p->estado == INIMIGO_ANDANDO) {
         p->dir = (playerRect.x < p->pos.x) ? ESQUERDA : DIREITA;
         p->pos.x += (p->dir == DIREITA) ? 2 : -2;
+        if(p->ativo){
+        	p->pos.y = p->yBase;
+		}
 
         if (agora - p->ultimoFrame > p->intervaloFrame) {
             p->ultimoFrame = agora;
@@ -338,8 +345,8 @@ static void updatePedinte(Pedinte* p, SDL_Rect playerRect, Uint32 agora) {
             if (p->frameAtual > 6) p->frameAtual = 0;
         }
         int linha = (p->dir == DIREITA) ? 2 : 1;
-        p->frameRect = (SDL_Rect){210 * p->frameAtual, 170 * linha, 210, 170};
-    } else if (p->estado == INIMIGO_PATRULHANDO) {
+        p->frameRect = (SDL_Rect){210 * p->frameAtual, 175 * linha, 210, 172};
+    } if (p->estado == INIMIGO_PATRULHANDO) {
         p->pos.x += (p->dir == DIREITA) ? 2 : -2;
         if (p->pos.x < p->limiteEsq) p->dir = DIREITA;
         if (p->pos.x + p->pos.w > p->limiteDir) p->dir = ESQUERDA;
@@ -351,7 +358,7 @@ static void updatePedinte(Pedinte* p, SDL_Rect playerRect, Uint32 agora) {
         }
         int linha = (p->dir == DIREITA) ? 2 : 1;
         p->frameRect = (SDL_Rect){210 * p->frameAtual, 170 * linha, 210, 170};
-    } else if (p->estado == INIMIGO_PARADO) {
+    } if (p->estado == INIMIGO_PARADO) {
         p->frameAtual = 0;
         p->frameRect = (SDL_Rect){0,0,210,170};
     }
@@ -359,6 +366,9 @@ static void updatePedinte(Pedinte* p, SDL_Rect playerRect, Uint32 agora) {
 
 static void renderPedinte(SDL_Renderer* ren, SDL_Texture* tex, Pedinte* p, SDL_Rect camera) {
     SDL_Rect dest = p->pos;
+    if(p->ativo){
+        	p->pos.y = p->yBase;
+		}
     dest.x -= camera.x;
     SDL_RenderCopy(ren, tex, &p->frameRect, &dest);
 }
@@ -608,7 +618,7 @@ totalCenarios++;
 	);
 
 	// NPCs
-    addPedinte(&cenarios[0], 3*w/5, h-(ponteR.y+ponteR.h)/6.2f, 110, 100);
+    addPedinte(&cenarios[0], 3*w/5, chaoR.y-100, 110, 100);
 
     // câmera e estado de cenário
     SDL_Rect camera = {0, 0, w, h};
