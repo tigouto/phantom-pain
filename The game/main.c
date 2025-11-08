@@ -11,14 +11,9 @@
 /* ----------------- CONSTANTES GLOBAIS ----------------- */
 
 #define RECUO_PEDINTE 100
-#define TEMPO_INVULNERAVEL 1000 // ms
+
 
 float tempoPulo = 0.0f;
-/* ----------------- ESTRUTURAS ----------------- */
-
-typedef enum{
-	INIMIGO_PEDINTE
-} TipoInimigo;
 
 /* ----------------- FUNÇÃO PRINCIPAL DO JOGO (runGame) ----------------- */
 void runGame(SDL_Window* win, SDL_Renderer* ren) {
@@ -71,28 +66,27 @@ void runGame(SDL_Window* win, SDL_Renderer* ren) {
     
 	totalCenarios++;
 
-   initCenario(&cenarios[1]);
-cenarios[1].fundo = fundo_sala;
+	initCenario(&cenarios[1]);
+	cenarios[1].fundo = fundo_sala;
+	
+	// começa logo após o primeiro cenário
+	cenarios[1].posX = cenarios[0].posX + cenarios[0].largura;
+	
+	// largura igual à tela
+	cenarios[1].largura = w;
+	cenarios[1].altura = h;
+	
+	addAtras(&cenarios[1], fundo_sala, (SDL_Rect){0, 0, w, h});
+	addAtras(&cenarios[1], atras_sala, (SDL_Rect){0, 0, w, h});
+	addAtras(&cenarios[1], frente_sala, (SDL_Rect){0, 0, w, h});
+	addFrente(&cenarios[1], borda_sala, (SDL_Rect){0, 0, w, h});
 
-// começa logo após o primeiro cenário
-cenarios[1].posX = cenarios[0].posX + cenarios[0].largura;
-
-// largura igual à tela
-cenarios[1].largura = w;
-cenarios[1].altura = h;
-
-addAtras(&cenarios[1], fundo_sala, (SDL_Rect){0, 0, w, h});
-addAtras(&cenarios[1], atras_sala, (SDL_Rect){0, 0, w, h});
-addAtras(&cenarios[1], frente_sala, (SDL_Rect){0, 0, w, h});
-addFrente(&cenarios[1], borda_sala, (SDL_Rect){0, 0, w, h});
-
-totalCenarios++;
+	totalCenarios++;
 
 
     // --- Jogador / HUD / Física / Ataque (integração do teste.c) ---
     SDL_ShowCursor(SDL_DISABLE);
 
-    SDL_Rect vidaRect = {0, 0, w/5, h/10};
     SDL_Rect player = { w/5, (h - ((15*h)/100)/3) - 105, 110, 100 };
     
     SDL_Rect chaoR = { 0, h-(ponteR.y + ponteR.h)/15 + 2, w, (ponteR.y + ponteR.h)/15};
@@ -105,15 +99,18 @@ totalCenarios++;
     };
 
     // HUD flores
-    int vidas = 3;
-    int animandoFlor = -1;
-    int frameFlorMorrendo = 0;
-    Uint32 ultimoFrameFlor = 0;
-    int intervaloFrameFlor = 120;
-    int totalFramesFlor = 13;
-    int florAltura = 60;
-    int invulneravel = 0;
-    Uint32 tempoInvulneravel = 0;
+    hudVida vida = {
+    	.vidaRect = {0, 0, w/5, h/10},
+	    .vidas = 3,
+	    .florAnimando = -1,
+	    .frame = 0,
+	    .ultimoFrame = 0,
+	    .totalFrames = 13,
+	    .intervalo = 120,
+	    .invulneravel = 0,
+	    .tempoInvulneravel = 0
+	};
+
 
     // animação player / física
     SDL_Rect f = { 0, 0, 230, 210 };
@@ -192,28 +189,16 @@ totalCenarios++;
 		// Atualiza checkpoints
 		float deltaTime = 16.0f; // o tempo decorrido entre frames
 
-		updateElementos(&cenarios[atual], player, keys, deltaTime, &vidas);
-
-
-        // Animação flor morrendo
-        if (animandoFlor >= 0 && agora - ultimoFrameFlor > intervaloFrameFlor) {
-            ultimoFrameFlor = agora;
-            frameFlorMorrendo++;
-            if (frameFlorMorrendo >= totalFramesFlor) {
-                vidas--;
-                animandoFlor = -1;
-                frameFlorMorrendo = 0;
-            }
-        }
+		updateElementos(&cenarios[atual], player, keys, deltaTime, &vida.vidas);
 
         // Invulnerabilidade timeout
-        if (invulneravel && agora - tempoInvulneravel > TEMPO_INVULNERAVEL) {
-            invulneravel = 0;
+        if (vida.invulneravel && agora - vida.tempoInvulneravel > TEMPO_INVULNERAVEL) {
+            vida.invulneravel = 0;
         }
 
         // --- ATAQUE ---
         if (keys[SDL_SCANCODE_X]) {
-            if (!atacando && agora - tempoAtaque > intervaloEntreAtaques && vidas > 0) {
+            if (!atacando && agora - tempoAtaque > intervaloEntreAtaques && vida.vidas > 0) {
                 atacando = 1;
                 tempoAtaque = agora;
                 frameAtaque = 0;
@@ -310,7 +295,7 @@ totalCenarios++;
             }
         }
 
-        if (!movendo && !virando && !atacando && vidas > 0) {
+        if (!movendo && !virando && !atacando && vida.vidas > 0) {
             if (dirPlayer == DIREITA) f = (SDL_Rect){0,0,230,210};
             else f = (SDL_Rect){0, 210 * 2, 230, 210};
         }
@@ -364,13 +349,11 @@ totalCenarios++;
 		    Pedinte* p = &cenarios[atual].pedintes[i];
 		    if (SDL_HasIntersection(&player, &p->pos)) {
 		        p->pos.x += (p->dir == DIREITA ? -RECUO_PEDINTE : RECUO_PEDINTE);
-		        if (!invulneravel && vidas > 0 && animandoFlor == -1) {
-		            animandoFlor = vidas - 1;
-		            frameFlorMorrendo = 0;
-		            ultimoFrameFlor = agora;
-		            invulneravel = 1;
-		            tempoInvulneravel = agora;
-		        }
+		        if (!vida.invulneravel) {
+				    perderFlor(&vida, agora);
+				    vida.invulneravel = 1;
+				    vida.tempoInvulneravel = agora;
+				}
 		    }
 		}
 
@@ -440,29 +423,12 @@ totalCenarios++;
         desenharFrente(ren, &cenarios[atual], camera);
 
         // HUD: desenha hud base
-        SDL_RenderCopy(ren, hud, NULL, &vidaRect);
+        SDL_RenderCopy(ren, hud, NULL, &vida.vidaRect);
 
-        // HUD: flores (animação por flor) — corrigido: verificar animação antes de "i < vidas"
-		for (int i = 0; i < 3; i++) {
-		    SDL_Rect florPos = { w/100 + i * w/25, vidaRect.h - 20, vidaRect.h/2, vidaRect.h/2 };
-		    SDL_Rect frame;
+		// Atualiza animação da perda da flor
+		updateFlor(&vida, agora);
 		
-		    // Se esta flor está sendo animada, desenha o frame da animação
-		    if (i == animandoFlor) {
-		        frame = (SDL_Rect){ 80 * frameFlorMorrendo, 0, 80, florAltura };
-		    }
-		    // Caso contrário, se for uma flor "viva", desenha o sprite estático
-		    else if (i < vidas) {
-		        frame = (SDL_Rect){ 0, 0, 80, florAltura };
-		    }
-		    // se não for nem animada nem viva, pula
-		    else {
-		        continue;
-		    }
-		
-		    SDL_RenderCopy(ren, texFlor, &frame, &florPos);
-		}
-
+		renderHudFlores(ren, texFlor, vida, w, vida.vidaRect);
 
         SDL_RenderPresent(ren);
     }
