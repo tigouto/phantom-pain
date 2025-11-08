@@ -236,3 +236,43 @@ void renderElementos(SDL_Renderer* ren, Cenario* c, SDL_Rect camera) {
         }
     }
 }
+
+void perderFlor(hudVida* hud, Uint32 agora) {
+    if (hud->vidas <= 0 || hud->florAnimando != -1) return;
+    hud->florAnimando = hud->vidas - 1;
+    hud->frame = 0;
+    hud->ultimoFrame = agora;
+}
+
+void updateFlor(hudVida* vida, Uint32 agora){
+	// Atualiza animação da perda da flor
+	if (vida->florAnimando != -1) {
+	    if (agora - vida->ultimoFrame > vida->intervalo) {
+	        vida->ultimoFrame = agora;
+	        vida->frame++;
+	
+	        // quando terminar animação
+	        if (vida->frame >= vida->totalFrames) {
+	            vida->florAnimando =-1;
+	            vida->frame =0;
+	            vida->vidas--; // <-- AGORA DECREMENTA VIDA DE VERDADE
+	        }
+	    }
+	}
+}
+
+void renderHudFlores(SDL_Renderer* ren, SDL_Texture* texFlor, hudVida hud, int w, SDL_Rect vidaRect) {
+    for (int i = 0; i < 3; i++) {
+        SDL_Rect florPos = { w/100 + i * w/25, vidaRect.h - 20, vidaRect.h/2, vidaRect.h/2 };
+        SDL_Rect frame;
+
+        if (i == hud.florAnimando)
+            frame = (SDL_Rect){ 80 * hud.frame, 0, 80, 60 };
+        else if (i < hud.vidas)
+            frame = (SDL_Rect){ 0, 0, 80, 60 };
+        else
+            continue;
+
+        SDL_RenderCopy(ren, texFlor, &frame, &florPos);
+    }
+}
