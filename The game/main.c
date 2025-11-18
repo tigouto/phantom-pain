@@ -1,6 +1,7 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
 #include <SDL2/SDL_mixer.h>
+#include <SDL2/SDL_ttf.h>
 #include <assert.h>
 #include <stdio.h>
 #include <math.h>
@@ -9,6 +10,26 @@
 #include "pedinte.h"
 
 /* ----------------- FUNÇÃO PRINCIPAL DO JOGO (runGame) ----------------- */
+
+int jogoPausado = 0;
+int opcaoPause = 0;
+
+void renderMenuPause(SDL_Renderer* ren, int w, int h){
+    SDL_SetRenderDrawBlendMode(ren, SDL_BLENDMODE_BLEND);
+    SDL_SetRenderDrawColor(ren,0,0,0,150);
+    SDL_Rect tela = {0,0,w,h};
+    SDL_RenderFillRect(ren, &tela);
+
+    desenharTexto("PAUSAD)",500,200,COR_BRANCO);
+    if(opcaoPause = 0){
+        desenharTexto("> Retornar",500,300,COR_AMARELO);
+    else
+        desenharTexto("Retornar",500,300,COR_CINZA);
+    }
+
+    if(opcaoPause = 1)
+}
+
 void runGame(SDL_Window* win, SDL_Renderer* ren) {
 	
 	int w, h;
@@ -146,52 +167,62 @@ void runGame(SDL_Window* win, SDL_Renderer* ren) {
 
         const Uint8 *keys = SDL_GetKeyboardState(NULL);
         Uint32 agora = SDL_GetTicks();
+
+        if(keys[SDL_SCANCODE_ESCAPE]){
+            if(!jogoPausado){
+                jogoPausado = 1;
+                opcaoPause = 0;
+            }
+        }
+
+        if (!jogoPausado){
+            updatePlayer(&player, keys, agora, chaoR, &vida, cenarios, atual, &camera, ren);
+
+            // Atualiza pedintes
+            for (int i = 0; i < cenarios[atual].numPedintes; i++){
+            	updatePedinte(&cenarios[atual].pedintes[i], player.pos, agora);
+		    }
+		    
+		    // Atualiza checkpoints
+		    float deltaTime = 16.0f; // o tempo decorrido entre frames
+
+		    updateElementos(&cenarios[atual], player.pos, keys, deltaTime, &vida.vidas);
+
+            // Invulnerabilidade timeout
+            if (vida.invulneravel && agora - vida.tempoInvulneravel > TEMPO_INVULNERAVEL) {
+                vida.invulneravel = 0;
+            }
+
+            // câmera
+            camera.x = player.pos.x + player.pos.w/2 - w/2;
+            if (camera.x < cenarios[atual].posX) camera.x = cenarios[atual].posX;
+            if (camera.x > cenarios[atual].posX + cenarios[atual].largura - w)
+                camera.x = cenarios[atual].posX + cenarios[atual].largura - w;
+
+            // transições de cenario
+            if (player.pos.x > cenarios[atual].posX + cenarios[atual].largura && (atual + 1) < totalCenarios) {
+                fade_out_in(ren, w, h, 1);
+                atual++;
+                player.pos.x = cenarios[atual].posX;
+                camera.x = 0;
+                camera.y = 0;
+                if (camera.x < cenarios[atual].posX) camera.x = cenarios[atual].posX;
+                if (camera.x > cenarios[atual].posX + cenarios[atual].largura - w)
+                    camera.x = cenarios[atual].posX + cenarios[atual].largura - w;
+                fade_out_in(ren, w, h, 0);
+            }
+            if (player.pos.x + player.pos.w < cenarios[atual].posX && atual > 0) {
+                fade_out_in(ren, w, h, 1);
+                atual--;
+                player.pos.x = cenarios[atual].posX + cenarios[atual].largura - 120;
+                camera.x = player.pos.x + player.pos.w / 2 - w / 2;
+                if (camera.x < cenarios[atual].posX) camera.x = cenarios[atual].posX;
+                if (camera.x > cenarios[atual].posX + cenarios[atual].largura - w)
+                    camera.x = cenarios[atual].posX + cenarios[atual].largura - w;
+                fade_out_in(ren, w, h, 0);
+            }
+        }
         
-        updatePlayer(&player, keys, agora, chaoR, &vida, cenarios, atual, &camera, ren);
-
-        // Atualiza pedintes
-        for (int i = 0; i < cenarios[atual].numPedintes; i++){
-        	updatePedinte(&cenarios[atual].pedintes[i], player.pos, agora);
-		}
-		
-		// Atualiza checkpoints
-		float deltaTime = 16.0f; // o tempo decorrido entre frames
-
-		updateElementos(&cenarios[atual], player.pos, keys, deltaTime, &vida.vidas);
-
-        // Invulnerabilidade timeout
-        if (vida.invulneravel && agora - vida.tempoInvulneravel > TEMPO_INVULNERAVEL) {
-            vida.invulneravel = 0;
-        }
-
-        // câmera
-        camera.x = player.pos.x + player.pos.w/2 - w/2;
-        if (camera.x < cenarios[atual].posX) camera.x = cenarios[atual].posX;
-        if (camera.x > cenarios[atual].posX + cenarios[atual].largura - w)
-            camera.x = cenarios[atual].posX + cenarios[atual].largura - w;
-
-        // transições de cenario
-        if (player.pos.x > cenarios[atual].posX + cenarios[atual].largura && (atual + 1) < totalCenarios) {
-            fade_out_in(ren, w, h, 1);
-            atual++;
-            player.pos.x = cenarios[atual].posX;
-            camera.x = 0;
-            camera.y = 0;
-            if (camera.x < cenarios[atual].posX) camera.x = cenarios[atual].posX;
-            if (camera.x > cenarios[atual].posX + cenarios[atual].largura - w)
-                camera.x = cenarios[atual].posX + cenarios[atual].largura - w;
-            fade_out_in(ren, w, h, 0);
-        }
-        if (player.pos.x + player.pos.w < cenarios[atual].posX && atual > 0) {
-            fade_out_in(ren, w, h, 1);
-            atual--;
-            player.pos.x = cenarios[atual].posX + cenarios[atual].largura - 120;
-            camera.x = player.pos.x + player.pos.w / 2 - w / 2;
-            if (camera.x < cenarios[atual].posX) camera.x = cenarios[atual].posX;
-            if (camera.x > cenarios[atual].posX + cenarios[atual].largura - w)
-                camera.x = cenarios[atual].posX + cenarios[atual].largura - w;
-            fade_out_in(ren, w, h, 0);
-        }
 
         // --- RENDER ---
         SDL_RenderClear(ren);
@@ -224,7 +255,13 @@ void runGame(SDL_Window* win, SDL_Renderer* ren) {
 		
 		renderHudFlores(ren, texFlor, vida, w, vida.vidaRect);
 
+        if(jogoPausado){
+            renderMenuPause(ren,w,h);
+        }
+
         SDL_RenderPresent(ren);
+
+        
     }
 
     // --- LIMPEZA ---
