@@ -14,24 +14,61 @@
 int jogoPausado = 0;
 int opcaoPause = 0;
 
-void renderMenuPause(SDL_Renderer* ren, int w, int h){
+void desenharTexto(SDL_Renderer* renderer, const char* texto, int x, int y, SDL_Color cor, TTF_Font* fonte){
+    // Renderiza o texto em surface
+    SDL_Surface* surface = TTF_RenderUTF8_Blended(fonte, texto, cor);
+    if (!surface) {
+        printf("Erro na TTF_RenderUTF8_Blended: %s\n", TTF_GetError());
+        return;
+    }
+
+    // Transforma em textura
+    SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface);
+    if (!texture) {
+        printf("Erro na SDL_CreateTextureFromSurface: %s\n", SDL_GetError());
+        SDL_FreeSurface(surface);
+        return;
+    }
+
+    // Pega tamanho do texto
+    SDL_Rect dst;
+    dst.x = x;
+    dst.y = y;
+    dst.w = surface->w;
+    dst.h = surface->h;
+
+    // Renderiza
+    SDL_RenderCopy(renderer, texture, NULL, &dst);
+
+    // Libera
+    SDL_DestroyTexture(texture);
+    SDL_FreeSurface(surface);
+}
+
+void renderMenuPause(SDL_Renderer* ren, int w, int h, TTF_Font* fontePadrao){
     SDL_SetRenderDrawBlendMode(ren, SDL_BLENDMODE_BLEND);
     SDL_SetRenderDrawColor(ren,0,0,0,150);
     SDL_Rect tela = {0,0,w,h};
     SDL_RenderFillRect(ren, &tela);
+	SDL_Color branco = {255, 255, 255, 255};
+	SDL_Color cinza = {180, 180, 180, 255};
+	SDL_Color amarelo = {255, 255, 0, 255};
+	
+	desenharTexto(ren,"PAUSADO", 500, 200, branco, fontePadrao);
 
-    desenharTexto("PAUSAD)",500,200,COR_BRANCO);
-    if(opcaoPause = 0){
-        desenharTexto("> Retornar",500,300,COR_AMARELO);
-    else
-        desenharTexto("Retornar",500,300,COR_CINZA);
-    }
+	if (opcaoPause == 0)
+	    desenharTexto(ren,"X Retornar", 500, 400, amarelo, fontePadrao);
+	else
+	    desenharTexto(ren,"Retornar", 500, 400, cinza, fontePadrao);
 
-    if(opcaoPause = 1)
+    if(opcaoPause == 1){
+    	desenharTexto(ren,"X Sair para o menu",500,500,amarelo,fontePadrao);
+	}else{
+		desenharTexto(ren,"Sair para o menu",500,500,cinza,fontePadrao);
+	}
 }
 
-void runGame(SDL_Window* win, SDL_Renderer* ren) {
-	
+void runGame(SDL_Window* win, SDL_Renderer* ren, TTF_Font* fontePadrao){
 	int w, h;
 	SDL_GetWindowSize(win, &w, &h);
 	
@@ -256,7 +293,28 @@ void runGame(SDL_Window* win, SDL_Renderer* ren) {
 		renderHudFlores(ren, texFlor, vida, w, vida.vidaRect);
 
         if(jogoPausado){
-            renderMenuPause(ren,w,h);
+            renderMenuPause(ren,w,h,fontePadrao);
+            if (isevt && evt.type == SDL_KEYDOWN) {
+                switch(evt.key.keysym.scancode) {
+                    case SDL_SCANCODE_DOWN:
+                    case SDL_SCANCODE_UP:
+                        if (opcaoPause == 0) {
+                            opcaoPause = 1;
+                        } else if (opcaoPause == 1) {
+                            opcaoPause = 0;
+                        }
+                        break;
+
+                    case SDL_SCANCODE_RETURN:
+                    case SDL_SCANCODE_Z:
+                        if(opcaoPause == 0){
+                            jogoPausado = 0;
+                        } else if(opcaoPause == 1){
+                            return;
+                        }
+                        break;
+            	}
+	    	}
         }
 
         SDL_RenderPresent(ren);
@@ -291,6 +349,10 @@ void runGame(SDL_Window* win, SDL_Renderer* ren) {
 int main(int argc, char* args[]) {
     SDL_Init(SDL_INIT_EVERYTHING);
     IMG_Init(IMG_INIT_PNG);
+    TTF_Init();
+	TTF_Font* fontePadrao = TTF_OpenFont("./src/fonte/minhaFonte.TTF", 48);
+	if (!fontePadrao) printf("Erro ao carregar fonte: %s\n", TTF_GetError());
+	
     SDL_Window* win = SDL_CreateWindow("Phantom Pain v0.1", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
                                        0, 0, SDL_WINDOW_FULLSCREEN_DESKTOP);
     SDL_Renderer* ren = SDL_CreateRenderer(win, -1, 0);
@@ -372,7 +434,7 @@ int main(int argc, char* args[]) {
                         case SDL_SCANCODE_RETURN:
                         case SDL_SCANCODE_Z:
                             if(selecionadoN == 1){
-                                runGame(win, ren);
+                                runGame(win, ren, fontePadrao);
                             } else if(selecionadoS == 1){
                                 rodando = 0;
                             }
@@ -402,7 +464,7 @@ int main(int argc, char* args[]) {
                 case SDL_MOUSEBUTTONDOWN:
                     if (evt.button.button == SDL_BUTTON_LEFT) {
                         if (selecionadoN == 1) {
-                            runGame(win, ren);
+                            runGame(win, ren, fontePadrao);
                         } else if (selecionadoC == 1) {
                             // continuar jogo (não implementado)
                         } else if (selecionadoS == 1) {
