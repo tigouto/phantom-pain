@@ -4,19 +4,18 @@
 #include <assert.h>
 #include <stdio.h>
 #include <math.h>
-#include "pedinte.h"
 #include "cenario.h"
-
-
-/* ----------------- CONSTANTES GLOBAIS ----------------- */
-
-#define RECUO_PEDINTE 100
-
-
-float tempoPulo = 0.0f;
+#include "player.h"
+#include "pedinte.h"
 
 /* ----------------- FUNÇÃO PRINCIPAL DO JOGO (runGame) ----------------- */
 void runGame(SDL_Window* win, SDL_Renderer* ren) {
+	
+	int w, h;
+	SDL_GetWindowSize(win, &w, &h);
+	
+	SDL_Rect camera = {0,0,w,h};
+	int atual = 0;
     // --- Texturas básicas (sprites, HUD, pedinte, flor) ---
     SDL_Texture* sprites = IMG_LoadTexture(ren, "./src/entidades/ss reaper.png");
     SDL_Texture* hud = IMG_LoadTexture(ren, "./src/mapa/hud.png");
@@ -39,9 +38,6 @@ void runGame(SDL_Window* win, SDL_Renderer* ren) {
     SDL_Texture* borda_sala = IMG_LoadTexture(ren, "./src/mapa/sala-p/borda.png");
     SDL_Texture* atras_sala = IMG_LoadTexture(ren, "./src/mapa/sala-p/fundo-atras.png");
     SDL_Texture* frente_sala = IMG_LoadTexture(ren, "./src/mapa/sala-p/fundo-frente.png");
-
-    int w, h;
-    SDL_GetWindowSize(win, &w, &h);
 
     // --- Preparar cenários (igual ao seu original) ---
     Cenario cenarios[MAX_CENARIOS];
@@ -86,17 +82,18 @@ void runGame(SDL_Window* win, SDL_Renderer* ren) {
 
     // --- Jogador / HUD / Física / Ataque (integração do teste.c) ---
     SDL_ShowCursor(SDL_DISABLE);
-
-    SDL_Rect player = { w/5, (h - ((15*h)/100)/3) - 105, 110, 100 };
+    
+	Player player;
+    initPlayer(&player,ren,w/5, (h - ((15*h)/100)/3) - 105, 110, 100);
     
     SDL_Rect chaoR = { 0, h-(ponteR.y + ponteR.h)/15 + 2, w, (ponteR.y + ponteR.h)/15};
 
     // Plataformas (do teste.c)
-    int numPlataformas = 0;
+    /*int numPlataformas = 0;
     SDL_Rect plataformas[2] = {
         { 200, h - 200, 150, 20 },
         { 400, h - 300, 150, 20 },
-    };
+    };*/
 
     // HUD flores
     hudVida vida = {
@@ -110,33 +107,6 @@ void runGame(SDL_Window* win, SDL_Renderer* ren) {
 	    .invulneravel = 0,
 	    .tempoInvulneravel = 0
 	};
-
-
-    // animação player / física
-    SDL_Rect f = { 0, 0, 230, 210 };
-    int vely = 0, gravidade = 1, puloInicial = -18, noChao = 1;
-    enum Direcao dirPlayer = DIREITA;
-    int virando = 0, frameVirada = 0, frameID = 0, frameIE = 0;
-    Uint32 ultimoFrameTroca = 0;
-    int intervaloFrame = 120;
-
-    // ataque player
-    int atacando = 0;
-    Uint32 tempoAtaque = 0;
-    int pulando = 0;
-    
-    Uint32 duracaoHitbox = 300;
-    Uint32 intervaloEntreAtaques = 800;
-    SDL_Rect hitboxPlayer = {0,0,0,0};
-    SDL_Rect puloPlayer = {0,0,0,0};
-    int frameAtaque = 0;
-    int framePulo = 0;
-    Uint32 ultimoFrameAtaque = 0;
-    Uint32 ultimoFramePulo = 0;
-    int intervaloFrameAtaque = 100;
-    int totalFramesAtaque = 4;
-    int intervaloFramePulo = 200;
-    int totalFramesPulo = 4;
 
 	// Checkpoints
 	addCheckpointElemento(
@@ -161,14 +131,10 @@ void runGame(SDL_Window* win, SDL_Renderer* ren) {
 	// NPCs
     addPedinte(&cenarios[0], 3*w/5, chaoR.y-100, 110, 100);
 
-    // câmera e estado de cenário
-    SDL_Rect camera = {0, 0, w, h};
-    int atual = 0;
-
     // render inicial + fade in
     SDL_RenderClear(ren);
     desenharCenario(ren, &cenarios[atual], camera, w, h,w,h);
-    SDL_RenderCopy(ren, sprites, &f, &(SDL_Rect){player.x - camera.x, player.y, player.w, player.h});
+    SDL_RenderCopy(ren, sprites, &player.frameRect, &(SDL_Rect){player.pos.x - camera.x, player.pos.y, player.pos.w, player.pos.h});
     SDL_RenderPresent(ren);
     fade_out_in(ren, w, h, 0);
 
@@ -180,195 +146,35 @@ void runGame(SDL_Window* win, SDL_Renderer* ren) {
 
         const Uint8 *keys = SDL_GetKeyboardState(NULL);
         Uint32 agora = SDL_GetTicks();
+        
+        updatePlayer(&player, keys, agora, chaoR, &vida, cenarios, atual, &camera, ren);
 
         // Atualiza pedintes
         for (int i = 0; i < cenarios[atual].numPedintes; i++){
-        	updatePedinte(&cenarios[atual].pedintes[i], player, agora);
+        	updatePedinte(&cenarios[atual].pedintes[i], player.pos, agora);
 		}
 		
 		// Atualiza checkpoints
 		float deltaTime = 16.0f; // o tempo decorrido entre frames
 
-		updateElementos(&cenarios[atual], player, keys, deltaTime, &vida.vidas);
+		updateElementos(&cenarios[atual], player.pos, keys, deltaTime, &vida.vidas);
 
         // Invulnerabilidade timeout
         if (vida.invulneravel && agora - vida.tempoInvulneravel > TEMPO_INVULNERAVEL) {
             vida.invulneravel = 0;
         }
 
-        // --- ATAQUE ---
-        if (keys[SDL_SCANCODE_X]) {
-            if (!atacando && agora - tempoAtaque > intervaloEntreAtaques && vida.vidas > 0) {
-                atacando = 1;
-                tempoAtaque = agora;
-                frameAtaque = 0;
-                ultimoFrameAtaque = tempoAtaque;
-            }
-        }
-
-        if (atacando) {
-            if (agora - ultimoFrameAtaque > intervaloFrameAtaque) {
-                ultimoFrameAtaque = agora;
-                frameAtaque++;
-                if (frameAtaque >= totalFramesAtaque) atacando = 0;
-            }
-            // hitbox depende da direção
-            if (dirPlayer == DIREITA)
-                hitboxPlayer = (SDL_Rect){player.x + player.w, player.y + 30, 60, 40};
-            else
-                hitboxPlayer = (SDL_Rect){player.x - 60, player.y + 30, 60, 40};
-        } else {
-            hitboxPlayer = (SDL_Rect){0,0,0,0};
-        }
-
-        // --- MOVIMENTO PLAYER (somente se ainda tiver vidas) ---
-        int movendo = 0;
-        
-        if (keys[SDL_SCANCODE_LEFT]) {
-            movendo = 1;
-            if (dirPlayer == DIREITA && virando != 1) {
-                virando = 1; frameVirada = 0; ultimoFrameTroca = agora;
-            }
-            if (atual != 0 || player.x > 55) player.x -= 13;
-            dirPlayer = ESQUERDA;
-            if (virando == 0 && !atacando) {
-                if (agora - ultimoFrameTroca > intervaloFrame) {
-                    ultimoFrameTroca = agora;
-                    frameIE++;
-                    if (frameIE > 3) frameIE = 0;
-                }
-                f = (SDL_Rect){230 * frameIE, 210 * 2, 230, 210};
-            }
-        }
-        // direita
-        else if (keys[SDL_SCANCODE_RIGHT]) {
-            movendo = 1;
-            if (dirPlayer == ESQUERDA && virando != 2) {
-                virando = 2; frameVirada = 0; ultimoFrameTroca = agora;
-            }
-            player.x += 13;
-            dirPlayer = DIREITA;
-            if (virando == 0 && !atacando) {
-                if (agora - ultimoFrameTroca > intervaloFrame) {
-                    ultimoFrameTroca = agora;
-                    frameID++;
-                    if (frameID > 3) frameID = 0;
-                }
-                f = (SDL_Rect){230 * frameID, 0, 230, 210};
-            }
-        }
-
-        // pulo
-        if (keys[SDL_SCANCODE_Z] && noChao) {
-        	if (!pulando){
-        		vely = puloInicial;
-                noChao = 0;
-                pulando = 1;
-                tempoPulo = agora;
-                framePulo = 0;
-                ultimoFramePulo = tempoPulo;
-			}
-    	}
-    	
-    	if (pulando) {
-            if (agora - ultimoFramePulo > intervaloFramePulo) {
-                ultimoFramePulo = agora;
-                framePulo++;
-                if (framePulo >= totalFramesPulo) pulando = 0;
-            }
-		}
-
-        // animação de virada (continua automaticamente)
-        if (virando == 1) {
-            if (agora - ultimoFrameTroca > intervaloFrame) {
-                ultimoFrameTroca = agora;
-                frameVirada++;
-                if (frameVirada > 2) { virando = 0; frameIE = 0; dirPlayer = ESQUERDA; }
-                else f = (SDL_Rect){230 * frameVirada, 210 * 1, 230, 210};
-            }
-        } else if (virando == 2) {
-            if (agora - ultimoFrameTroca > intervaloFrame) {
-                ultimoFrameTroca = agora;
-                frameVirada++;
-                if (frameVirada > 2) { virando = 0; frameID = 0; dirPlayer = DIREITA; }
-                else f = (SDL_Rect){230 * frameVirada, 210 * 3, 230, 210};
-            }
-        }
-
-        if (!movendo && !virando && !atacando && vida.vidas > 0) {
-            if (dirPlayer == DIREITA) f = (SDL_Rect){0,0,230,210};
-            else f = (SDL_Rect){0, 210 * 2, 230, 210};
-        }
-
-        // animação de ataque (se quiser recortar a linha de sprite adequada)
-        if (atacando) {
-            int linhaAtaque = (dirPlayer == DIREITA) ? 4 : 5; // supondo linhas 4/5
-            f = (SDL_Rect){230 * (frameAtaque % totalFramesAtaque), 210 * linhaAtaque, 230, 210};
-        }
-        
-        if (pulando) {
-            int linhaPulo = (dirPlayer == DIREITA) ? 4 : 5; // supondo linhas 4/5
-            f = (SDL_Rect){230 * (framePulo % totalFramesPulo), 210 * linhaPulo, 230, 210};
-        }
-
-        // física e plataformas
-        player.y += vely;
-        vely += gravidade;
-        noChao = 0;
-
-        // colisão com chão
-        if (player.y + player.h >= chaoR.y) {
-            player.y = chaoR.y - player.h; vely = 0; noChao = 1;
-        }
-        // colisão plataformas
-        for (int i = 0; i < numPlataformas; i++) {
-            SDL_Rect plat = plataformas[i];
-            if (vely >= 0 && player.y + player.h > plat.y && player.y + player.h - vely <= plat.y &&
-                player.x + player.w > plat.x && player.x < plat.x + plat.w) {
-                player.y = plat.y - player.h;
-                vely = 0;
-                noChao = 1;
-            }
-        }
-
-        // --- INTERAÇÕES: ataque acerta pedinte / pedinte acerta player ---
-        // ataque acerta pedinte
-        if (atacando) {
-    		for (int i = 0; i < cenarios[atual].numPedintes; i++) {
-        		Pedinte* p = &cenarios[atual].pedintes[i];
-        		if (SDL_HasIntersection(&hitboxPlayer, &p->pos)) {
-            		p->pos.x += (p->dir == DIREITA) ? -RECUO_PEDINTE : RECUO_PEDINTE;
-            		break;
-        		}
-    		}
-		}
-
-
-        // pedinte colide com player -> player perde flor (se não invulneravel)
-        for (int i = 0; i < cenarios[atual].numPedintes; i++) {
-		    Pedinte* p = &cenarios[atual].pedintes[i];
-		    if (SDL_HasIntersection(&player, &p->pos)) {
-		        p->pos.x += (p->dir == DIREITA ? -RECUO_PEDINTE : RECUO_PEDINTE);
-		        if (!vida.invulneravel) {
-				    perderFlor(&vida, agora);
-				    vida.invulneravel = 1;
-				    vida.tempoInvulneravel = agora;
-				}
-		    }
-		}
-
-
         // câmera
-        camera.x = player.x + player.w/2 - w/2;
+        camera.x = player.pos.x + player.pos.w/2 - w/2;
         if (camera.x < cenarios[atual].posX) camera.x = cenarios[atual].posX;
         if (camera.x > cenarios[atual].posX + cenarios[atual].largura - w)
             camera.x = cenarios[atual].posX + cenarios[atual].largura - w;
 
         // transições de cenario
-        if (player.x > cenarios[atual].posX + cenarios[atual].largura && (atual + 1) < totalCenarios) {
+        if (player.pos.x > cenarios[atual].posX + cenarios[atual].largura && (atual + 1) < totalCenarios) {
             fade_out_in(ren, w, h, 1);
             atual++;
-            player.x = cenarios[atual].posX;
+            player.pos.x = cenarios[atual].posX;
             camera.x = 0;
             camera.y = 0;
             if (camera.x < cenarios[atual].posX) camera.x = cenarios[atual].posX;
@@ -376,11 +182,11 @@ void runGame(SDL_Window* win, SDL_Renderer* ren) {
                 camera.x = cenarios[atual].posX + cenarios[atual].largura - w;
             fade_out_in(ren, w, h, 0);
         }
-        if (player.x + player.w < cenarios[atual].posX && atual > 0) {
+        if (player.pos.x + player.pos.w < cenarios[atual].posX && atual > 0) {
             fade_out_in(ren, w, h, 1);
             atual--;
-            player.x = cenarios[atual].posX + cenarios[atual].largura - 120;
-            camera.x = player.x + player.w / 2 - w / 2;
+            player.pos.x = cenarios[atual].posX + cenarios[atual].largura - 120;
+            camera.x = player.pos.x + player.pos.w / 2 - w / 2;
             if (camera.x < cenarios[atual].posX) camera.x = cenarios[atual].posX;
             if (camera.x > cenarios[atual].posX + cenarios[atual].largura - w)
                 camera.x = cenarios[atual].posX + cenarios[atual].largura - w;
@@ -392,10 +198,10 @@ void runGame(SDL_Window* win, SDL_Renderer* ren) {
         desenharCenario(ren, &cenarios[atual], camera, w, h,w,h);
 
         // plataformas (debug fill)
-        for (int i = 0; i < numPlataformas; i++) {
+        /*for (int i = 0; i < numPlataformas; i++) {
             SDL_SetRenderDrawColor(ren, 0x80, 0x80, 0x80, 0xFF);
             SDL_RenderFillRect(ren, &plataformas[i]);
-        }
+        }*/
 		
 		renderElementos(ren, &cenarios[atual], camera);
 
@@ -405,20 +211,8 @@ void runGame(SDL_Window* win, SDL_Renderer* ren) {
 		}
 
         // jogador
-        SDL_Rect playerScreen = player;
-        playerScreen.x -= camera.x;
-        SDL_RenderCopy(ren, sprites, &f, &playerScreen);
+        renderPlayer(&player, ren, sprites, camera);
 
-        // debug: hitbox ataque
-        if (atacando) {
-            SDL_Rect hitScreen = hitboxPlayer;
-            hitScreen.x -= camera.x;
-            SDL_SetRenderDrawBlendMode(ren, SDL_BLENDMODE_BLEND);
-            SDL_SetRenderDrawColor(ren, 255, 0, 0, 128);
-            SDL_RenderFillRect(ren, &hitScreen);
-        }
-
-        
         // desenha frente cenário
         desenharFrente(ren, &cenarios[atual], camera);
 
