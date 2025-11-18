@@ -13,6 +13,7 @@
 
 int jogoPausado = 0;
 int opcaoPause = 0;
+int podeUsarEsc = 1;
 
 void desenharTexto(SDL_Renderer* renderer, const char* texto, int x, int y, SDL_Color cor, TTF_Font* fonte){
     // Renderiza o texto em surface
@@ -205,14 +206,20 @@ void runGame(SDL_Window* win, SDL_Renderer* ren, TTF_Font* fontePadrao){
         const Uint8 *keys = SDL_GetKeyboardState(NULL);
         Uint32 agora = SDL_GetTicks();
 
-        if(keys[SDL_SCANCODE_ESCAPE]){
-            if(!jogoPausado){
-                jogoPausado = 1;
-                opcaoPause = 0;
-            }
-        }
+		if (!keys[SDL_SCANCODE_ESCAPE]) {
+		    podeUsarEsc = 1;
+		}
 
         if (!jogoPausado){
+        	
+        	if (isevt && evt.type == SDL_KEYDOWN && evt.key.keysym.scancode == SDL_SCANCODE_ESCAPE){
+	            if(!jogoPausado && podeUsarEsc){
+	                jogoPausado = 1;
+	                opcaoPause = 0;
+	                podeUsarEsc = 0;
+	            }
+	        }
+        	
             updatePlayer(&player, keys, agora, chaoR, &vida, cenarios, atual, &camera, ren);
 
             // Atualiza pedintes
@@ -294,7 +301,13 @@ void runGame(SDL_Window* win, SDL_Renderer* ren, TTF_Font* fontePadrao){
 
         if(jogoPausado){
             renderMenuPause(ren,w,h,fontePadrao);
-            if (isevt && evt.type == SDL_KEYDOWN) {
+        
+            if (isevt && evt.type == SDL_KEYDOWN) {	
+            	if (podeUsarEsc && evt.key.keysym.scancode == SDL_SCANCODE_ESCAPE) {
+	            	jogoPausado = 0;
+	            	podeUsarEsc = 0;
+	        	}
+            	
                 switch(evt.key.keysym.scancode) {
                     case SDL_SCANCODE_DOWN:
                     case SDL_SCANCODE_UP:
@@ -304,7 +317,7 @@ void runGame(SDL_Window* win, SDL_Renderer* ren, TTF_Font* fontePadrao){
                             opcaoPause = 0;
                         }
                         break;
-
+                    
                     case SDL_SCANCODE_RETURN:
                     case SDL_SCANCODE_Z:
                         if(opcaoPause == 0){
@@ -316,6 +329,7 @@ void runGame(SDL_Window* win, SDL_Renderer* ren, TTF_Font* fontePadrao){
             	}
 	    	}
         }
+        
 
         SDL_RenderPresent(ren);
 
