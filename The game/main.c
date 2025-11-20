@@ -11,9 +11,7 @@
 
 /* ----------------- FUNÇÃO PRINCIPAL DO JOGO (runGame) ----------------- */
 
-int jogoPausado = 0;
-int opcaoPause = 0;
-int podeUsarEsc = 1;
+
 
 void desenharTexto(SDL_Renderer* renderer, const char* texto, int x, int y, SDL_Color cor, TTF_Font* fonte){
     // Renderiza o texto em surface
@@ -46,7 +44,7 @@ void desenharTexto(SDL_Renderer* renderer, const char* texto, int x, int y, SDL_
     SDL_FreeSurface(surface);
 }
 
-void renderMenuPause(SDL_Renderer* ren, int w, int h, TTF_Font* fontePadrao){
+void renderMenuPause(SDL_Renderer* ren, int w, int h, TTF_Font* fontePadrao, int opcaoPause){
     SDL_SetRenderDrawBlendMode(ren, SDL_BLENDMODE_BLEND);
     SDL_SetRenderDrawColor(ren,0,0,0,150);
     SDL_Rect tela = {0,0,w,h};
@@ -70,6 +68,11 @@ void renderMenuPause(SDL_Renderer* ren, int w, int h, TTF_Font* fontePadrao){
 }
 
 void runGame(SDL_Window* win, SDL_Renderer* ren, TTF_Font* fontePadrao){
+	
+	int jogoPausado = 0;
+	int opcaoPause = 0;
+	int podeUsarEsc = 1;
+	
 	int w, h;
 	SDL_GetWindowSize(win, &w, &h);
 	
@@ -300,7 +303,7 @@ void runGame(SDL_Window* win, SDL_Renderer* ren, TTF_Font* fontePadrao){
 		renderHudFlores(ren, texFlor, vida, w, vida.vidaRect);
 
         if(jogoPausado){
-            renderMenuPause(ren,w,h,fontePadrao);
+            renderMenuPause(ren,w,h,fontePadrao,opcaoPause);
         
             if (isevt && evt.type == SDL_KEYDOWN) {	
             	if (podeUsarEsc && evt.key.keysym.scancode == SDL_SCANCODE_ESCAPE) {
