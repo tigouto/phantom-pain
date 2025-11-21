@@ -13,6 +13,11 @@ void initPedinte(Pedinte* p, int x, int y, int w, int h) {
     p->limiteDir = x + 150;
     p->ativo = 1;
     p->yBase = y;
+    p->atrito = 0.8f;
+    p->velDano = 0;
+    p->sofrendoDano = 0;
+    p->vida = 3;
+    p->morto = 0;
 }
 
 void updatePedinte(Pedinte* p, SDL_Rect playerRect, Uint32 agora) {
@@ -68,13 +73,31 @@ void updatePedinte(Pedinte* p, SDL_Rect playerRect, Uint32 agora) {
         p->frameAtual = 0;
         p->frameRect = (SDL_Rect){0,0,210,170};
     }
+    
+    if (p->sofrendoDano) {
+	    p->pos.x += p->velDano;
+	    // aplica atrito
+	    if (p->velDano > 0) {
+	        p->velDano -= p->atrito;
+	        if (p->velDano < 0) p->velDano = 0;
+	    } else {
+	        p->velDano += p->atrito;
+	        if (p->velDano > 0) p->velDano = 0;
+	    }
+	    // parou totalmente → fim do knockback
+	    if (p->velDano == 0) {
+	        p->sofrendoDano = 0;
+	    }
+	}
+
+    
 }
 
 void renderPedinte(SDL_Renderer* ren, SDL_Texture* tex, Pedinte* p, SDL_Rect camera) {
+	
+	if(p->morto) return;
+	
     SDL_Rect dest = p->pos;
-    if(p->ativo){
-        	p->pos.y = p->yBase;
-		}
     dest.x -= camera.x;
     SDL_RenderCopy(ren, tex, &p->frameRect, &dest);
 }
