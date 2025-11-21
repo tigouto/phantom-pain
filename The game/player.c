@@ -23,6 +23,7 @@ void initPlayer(Player* p, SDL_Renderer* ren, int x, int y, int w, int h) {
     p->ultimoFrameAtaque = 0;
     p->intervaloFrameAtaque = 100;
     p->totalFramesAtaque = 4;
+    p->dano = 1;
 
     p->pulando = 0;
 	p->puloInicial = -18;
@@ -62,9 +63,20 @@ void updatePlayer(Player* p, const Uint8* keys, Uint32 agora, SDL_Rect chaoR, hu
         
         for (int i = 0; i < cenarios[atual].numPedintes; i++) {
     		Pedinte* pe = &cenarios[atual].pedintes[i];
-    		if (SDL_HasIntersection(&p->hitboxPlayer, &pe->pos)) {
-        		pe->pos.x += (pe->dir == DIREITA) ? -RECUO_PEDINTE : RECUO_PEDINTE;
-        		break;
+    		if(pe->morto) continue;
+    		
+    		if(SDL_HasIntersection(&p->hitboxPlayer,&pe->pos)){
+				pe->pos.x += (pe->dir == DIREITA) ? -RECUO_PEDINTE : RECUO_PEDINTE;
+
+	        	// aplica o dano do player
+		        pe->vida -= p->dano;
+		
+		        // se a vida chegou a zero → morreu
+		        if (pe->vida <= 0) {
+		            pe->morto = 1;
+		        }
+		
+		        return;
     		}
 		}
 		
