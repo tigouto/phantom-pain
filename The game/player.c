@@ -207,7 +207,10 @@ void updatePlayer(Player* p, const Uint8* keys, Uint32 agora, SDL_Rect chaoR, hu
     
     for (int i = 0; i < cenarios[atual].numPedintes; i++) {
 	    Pedinte* pe = &cenarios[atual].pedintes[i];
-	    if (SDL_HasIntersection(&p->pos, &pe->pos)) {
+	    
+	    if(pe->morto) continue;
+	    
+	    if (SDL_HasIntersection(&p->pos, &pe->pos) ) {
 		    pe->sofrendoDano = 1;
 		    if (pe->dir == DIREITA) pe->velDano = -12;   // empurra para esquerda
 		    else pe->velDano = 12;    // empurra para direita
