@@ -126,12 +126,14 @@ void updatePlayer(Player* p, const Uint8* keys, Uint32 agora, SDL_Rect chaoR, hu
 	if (p->pulando) {
         if (agora - p->ultimoFramePulo > p->intervaloFramePulo) {
         	p->ultimoFramePulo = agora;
-        	p->framePulo++;
+    		p->framePulo++;
         	if (p->framePulo >= p->totalFramesPulo){
         		p->pulando = 0;
-			} 
-        }
-        
+        		if (p->dir == DIREITA) p->frameRect = (SDL_Rect){0,0,230,210};
+        		else p->frameRect = (SDL_Rect){0, 210 * 2, 230, 210};
+        		return;
+			}
+		}
         int linhaPulo = (p->dir == DIREITA) ? 4 : 5; // supondo linhas 4/5
         p->frameRect = (SDL_Rect){230 * (p->framePulo % p->totalFramesPulo), 210 * linhaPulo, 230, 210};
 	}
@@ -140,20 +142,34 @@ void updatePlayer(Player* p, const Uint8* keys, Uint32 agora, SDL_Rect chaoR, hu
         if (agora - p->ultimoFrameTroca > p->intervaloFrame) {
             p->ultimoFrameTroca = agora;
             p->frameVirada++;
-            if (p->frameVirada > 2) { p->virando = 0; p->frameIE = 0; p->dir = ESQUERDA; }
-            else p->frameRect = (SDL_Rect){230 * p->frameVirada, 210 * 1, 230, 210};
+            if (p->frameVirada > 2) { 
+				p->virando = 0; 
+				p->frameIE = 0; 
+				p->dir = ESQUERDA;
+				p->frameRect = (SDL_Rect){0, 210 * 2, 230, 210};
+				return; 
+			}
+            p->frameRect = (SDL_Rect){230 * p->frameVirada, 210 * 1, 230, 210};
         }
+        return;
     } 
 	if (p->virando == 2) {
         if (agora - p->ultimoFrameTroca > p->intervaloFrame) {
             p->ultimoFrameTroca = agora;
             p->frameVirada++;
-            if (p->frameVirada > 2) {p->virando = 0; p->frameID = 0; p->dir = DIREITA; }
-            else p->frameRect = (SDL_Rect){230 * p->frameVirada, 210 * 3, 230, 210};
+            if (p->frameVirada > 2) {
+				p->virando = 0; 
+				p->frameID = 0; 
+				p->dir = DIREITA; 
+				p->frameRect = (SDL_Rect){0, 0, 230, 210};
+				return;
+			}
+            p->frameRect = (SDL_Rect){230 * p->frameVirada, 210 * 3, 230, 210};
         }
+        return;
     }
 
-    if (!p->movendo && !p->virando && !p->atacando && vida->vidas > 0) {
+    if (!p->pulando && !p->movendo && !p->virando && !p->atacando && vida->vidas > 0) {
         if (p->dir == DIREITA) p->frameRect = (SDL_Rect){0,0,230,210};
         else p->frameRect = (SDL_Rect){0, 210 * 2, 230, 210};
     }
@@ -165,8 +181,6 @@ void updatePlayer(Player* p, const Uint8* keys, Uint32 agora, SDL_Rect chaoR, hu
         p->pos.y = chaoR.y - p->pos.h; 
 		p->vely = 0; 
 		p->noChao = 1;
-        if (p->dir == DIREITA) p->frameRect = (SDL_Rect){0,0,230,210};
-        else p->frameRect = (SDL_Rect){0, 210 * 2, 230, 210};
 	}
 	
 	/*for (int i = 0; i < numPlataformas; i++) {
@@ -182,7 +196,9 @@ void updatePlayer(Player* p, const Uint8* keys, Uint32 agora, SDL_Rect chaoR, hu
     for (int i = 0; i < cenarios[atual].numPedintes; i++) {
 	    Pedinte* pe = &cenarios[atual].pedintes[i];
 	    if (SDL_HasIntersection(&p->pos, &pe->pos)) {
-	        pe->pos.x += (pe->dir == DIREITA ? -RECUO_PEDINTE : RECUO_PEDINTE);
+		    pe->sofrendoDano = 1;
+		    if (pe->dir == DIREITA) pe->velDano = -12;   // empurra para esquerda
+		    else pe->velDano = 12;    // empurra para direita
 	        if (!vida->invulneravel) {
 			    perderFlor(vida, agora);
 			    vida->invulneravel = 1;
