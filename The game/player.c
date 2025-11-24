@@ -135,16 +135,16 @@ void updatePlayer(Player* p, const Uint8* keys, Uint32 agora, SDL_Rect chaoR, hu
     
     if(p->atacando){
 	    // largura e altura do golpe (ajuste conforme sua sprite)
-	    int hitW = 75;
+	    int hitW = 150;
 	    int hitH = 50;
 	
 	    if (p->dir == DIREITA) {
-	        p->hitboxFoice.x = p->pos.x + p->pos.w - 20; // pequeno offset
-	        p->hitboxFoice.y = p->pos.y + 40;            // alinhamento vertical
+	        p->hitboxFoice.x = p->pos.x + p->pos.w*0.4; // pequeno offset
+	        p->hitboxFoice.y = p->pos.y + p->pos.h*0.5;            // alinhamento vertical
 	    } 
 		else {
-	        p->hitboxFoice.x = p->pos.x - hitW + 20;
-	        p->hitboxFoice.y = p->pos.y + 40;
+	        p->hitboxFoice.x = p->pos.x - p->pos.w*0.6;
+	        p->hitboxFoice.y = p->pos.y + p->pos.h*0.5;
 	    }
 	
 	    p->hitboxFoice.w = hitW;
@@ -162,7 +162,17 @@ void updatePlayer(Player* p, const Uint8* keys, Uint32 agora, SDL_Rect chaoR, hu
         }
         if (atual != 0 || p->pos.x > 55) p->pos.x -= 13;
         p->dir = ESQUERDA;
-        if (p->virando == 0) {
+        
+        if (p->atacando) {
+            if (agora - p->ultimoFrameTroca > p->intervaloFrame) {
+                p->ultimoFrameTroca = agora;
+                p->frameIE++;
+                if (p->frameIE > 3) p->frameIE = 0;
+            }
+            p->framePernasRect = (SDL_Rect){230 * p->frameIE, 210 * 8, 230, 210};
+        }
+        
+        if (!p->virando && !p->atacando) {
             if (agora - p->ultimoFrameTroca > p->intervaloFrame) {
                 p->ultimoFrameTroca = agora;
                 p->frameIE++;
@@ -177,15 +187,26 @@ void updatePlayer(Player* p, const Uint8* keys, Uint32 agora, SDL_Rect chaoR, hu
         if (p->dir == ESQUERDA && p->virando != 2) {
             p->virando = 2; p->frameVirada = 0; p->ultimoFrameTroca = agora;
         }
+        
         p->pos.x += 13;
         p->dir = DIREITA;
-        if (p->virando == 0) {
+        
+        if (p->atacando) {
             if (agora - p->ultimoFrameTroca > p->intervaloFrame) {
                 p->ultimoFrameTroca = agora;
                 p->frameID++;
                 if (p->frameID > 3) p->frameID = 0;
             }
-            p->framePernasRect = (SDL_Rect){230 * p->frameID, 0, 230, 210};
+            p->framePernasRect = (SDL_Rect){230 * p->frameID, 210 * 6, 230, 210};
+        }
+        
+        if (!p->virando && !p->atacando) {
+            if (agora - p->ultimoFrameTroca > p->intervaloFrame) {
+                p->ultimoFrameTroca = agora;
+                p->frameID++;
+                if (p->frameID > 3) p->frameID = 0;
+            }
+            p->framePernasRect = (SDL_Rect){230 * p->frameID, 210 * 0, 230, 210};
         }
     }
     
