@@ -2,7 +2,8 @@
 
 void initPlayer(Player* p, SDL_Renderer* ren, int x, int y, int w, int h) {
     p->pos = (SDL_Rect){x,y,w,h};
-	p->frameRect = (SDL_Rect){0,0,230,210};
+	p->framePernasRect = (SDL_Rect){0,0,230,210};
+	p->frameTroncoRect = (SDL_Rect){0,0,230,210};
 	p->dir = DIREITA;
     p->vely = 0;
     p->gravidade = 1;
@@ -19,10 +20,12 @@ void initPlayer(Player* p, SDL_Renderer* ren, int x, int y, int w, int h) {
 	p->hitboxPlayer = (SDL_Rect){0,0,0,0};
     p->tempoAtaque = 0;
     p->intervaloEntreAtaques = 800;
-    p->frameAtaque = 0;
+    p->frameAtaquePernas = 0;
+    p->frameAtaqueTronco = 0;
     p->ultimoFrameAtaque = 0;
     p->intervaloFrameAtaque = 100;
-    p->totalFramesAtaque = 4;
+    p->totalFramesAtaquePernas = 4;
+    p->totalFramesAtaqueTronco = 6;
     p->dano = 1;
 
     p->pulando = 0;
@@ -35,32 +38,65 @@ void initPlayer(Player* p, SDL_Renderer* ren, int x, int y, int w, int h) {
 }
 
 void updatePlayer(Player* p, const Uint8* keys, Uint32 agora, SDL_Rect chaoR, hudVida* vida, Cenario* cenarios, int atual, SDL_Rect* camera, SDL_Renderer* ren){
+	int atacandoAgora = p->atacando;
+	
 	if (keys[SDL_SCANCODE_X]) {
-            if (!p->atacando && agora - p->tempoAtaque > p->intervaloEntreAtaques && vida->vidas > 0) {
+            if (!p->virando && !p->atacando && agora - p->tempoAtaque > p->intervaloEntreAtaques && vida->vidas > 0) {
                 p->atacando = 1;
                 p->tempoAtaque = agora;
-                p->frameAtaque = 0;
                 p->ultimoFrameAtaque = p->tempoAtaque;
+                
+                int linhaAtaquePernas = (p->dir == DIREITA) ? 6 : 8;
+				int linhaAtaqueTronco = (p->dir == DIREITA) ? 0 : 1;
+				
+				p->framePernasRect = (SDL_Rect){0, 210 * linhaAtaquePernas, 230, 210};
+				p->frameTroncoRect = (SDL_Rect){0, 210 * linhaAtaqueTronco, 230, 210};
+
             }
         }
 
     if (p->atacando) {
         if (agora - p->ultimoFrameAtaque > p->intervaloFrameAtaque) {
             p->ultimoFrameAtaque = agora;
-            p->frameAtaque++;
-            if (p->frameAtaque >= p->totalFramesAtaque) p->atacando = 0;
-        }
-        // hitbox depende da direção
-        if (p->dir == DIREITA){
-        	p->hitboxPlayer = (SDL_Rect){p->pos.x + p->pos.w, p->pos.y + 30, 60, 40};
-		}
-        else{
-        	p->hitboxPlayer = (SDL_Rect){p->pos.x - 60, p->pos.y + 30, 60, 40};
-		}
-		
-		int linhaAtaque = (p->dir == DIREITA) ? 4 : 5; // supondo linhas 4/5
-        p->frameRect = (SDL_Rect){230 * (p->frameAtaque % p->totalFramesAtaque), 210 * linhaAtaque, 230, 210};
-        
+            p->frameAtaquePernas++;
+            p->frameAtaqueTronco++;
+            
+			if (p->frameAtaqueTronco >= p->totalFramesAtaqueTronco) {
+			
+			    // Reset das pernas
+			    if (p->dir == DIREITA){
+			    	p->framePernasRect = (SDL_Rect){0, 0, 230, 210};
+				}
+			        
+			    else
+			        p->framePernasRect = (SDL_Rect){0, 210 * 2, 230, 210};
+			
+			    // Reset do tronco
+			    p->frameTroncoRect = (SDL_Rect){0, 0, 230, 210};
+			
+			    // IMPORTANTE: zerar contadores
+			    p->frameAtaquePernas = 0;
+			    p->frameAtaqueTronco = 0;
+				p->atacando = 0;
+			} else {
+			    // continua animando ataque
+			    int linhaAtaquePernas = (p->dir == DIREITA) ? 6 : 8;
+			    int linhaAtaqueTronco = (p->dir == DIREITA) ? 0 : 1;
+			
+			    p->framePernasRect = (SDL_Rect){
+			        230 * (p->frameAtaquePernas % p->totalFramesAtaquePernas),
+			        210 * linhaAtaquePernas,
+			        230, 210
+			    };
+			
+			    p->frameTroncoRect = (SDL_Rect){
+			        230 * (p->frameAtaqueTronco % p->totalFramesAtaqueTronco),
+			        210 * linhaAtaqueTronco,
+			        230, 210
+			    };
+			}
+    	}
+
         for (int i = 0; i < cenarios[atual].numPedintes; i++) {
     		Pedinte* pe = &cenarios[atual].pedintes[i];
     		if(pe->morto) continue;
@@ -75,35 +111,52 @@ void updatePlayer(Player* p, const Uint8* keys, Uint32 agora, SDL_Rect chaoR, hu
 		        if (pe->vida <= 0) {
 		            pe->morto = 1;
 		        }
-		
-		        return;
     		}
 		}
 		
 		SDL_Rect hitScreen = p->hitboxPlayer;
         hitScreen.x -= camera->x;
-        SDL_SetRenderDrawBlendMode(ren, SDL_BLENDMODE_BLEND);
+        
         SDL_SetRenderDrawColor(ren, 255, 0, 0, 128);
-        SDL_RenderFillRect(ren, &hitScreen);	
-    } 
+        SDL_RenderFillRect(ren, &hitScreen);
+    }
+    
+    if(p->atacando){
+	    // largura e altura do golpe (ajuste conforme sua sprite)
+	    int hitW = 80;
+	    int hitH = 80;
+	
+	    if (p->dir == DIREITA) {
+	        p->hitboxPlayer.x = p->pos.x + p->pos.w - 20; // pequeno offset
+	        p->hitboxPlayer.y = p->pos.y + 40;            // alinhamento vertical
+	    } 
+		else {
+	        p->hitboxPlayer.x = p->pos.x - hitW + 20;
+	        p->hitboxPlayer.y = p->pos.y + 40;
+	    }
+	
+	    p->hitboxPlayer.w = hitW;
+	    p->hitboxPlayer.h = hitH;
+	}
 	else {
         p->hitboxPlayer = (SDL_Rect){0,0,0,0};
     }
     
     if (keys[SDL_SCANCODE_LEFT]) {
         p->movendo = 1;
-        if (p->dir == DIREITA && p->virando != 1) {
+        
+        if (p->dir == DIREITA && p->virando != 1 ) {
             p->virando = 1; p->frameVirada = 0; p->ultimoFrameTroca = agora;
         }
         if (atual != 0 || p->pos.x > 55) p->pos.x -= 13;
         p->dir = ESQUERDA;
-        if (p->virando == 0 && !p->atacando) {
+        if (p->virando == 0) {
             if (agora - p->ultimoFrameTroca > p->intervaloFrame) {
                 p->ultimoFrameTroca = agora;
                 p->frameIE++;
                 if (p->frameIE > 3) p->frameIE = 0;
             }
-            p->frameRect = (SDL_Rect){230 * p->frameIE, 210 * 2, 230, 210};
+            p->framePernasRect = (SDL_Rect){230 * p->frameIE, 210 * 2, 230, 210};
         }
     }
     // direita
@@ -114,13 +167,13 @@ void updatePlayer(Player* p, const Uint8* keys, Uint32 agora, SDL_Rect chaoR, hu
         }
         p->pos.x += 13;
         p->dir = DIREITA;
-        if (p->virando == 0 && !p->atacando) {
+        if (p->virando == 0) {
             if (agora - p->ultimoFrameTroca > p->intervaloFrame) {
                 p->ultimoFrameTroca = agora;
                 p->frameID++;
                 if (p->frameID > 3) p->frameID = 0;
             }
-            p->frameRect = (SDL_Rect){230 * p->frameID, 0, 230, 210};
+            p->framePernasRect = (SDL_Rect){230 * p->frameID, 0, 230, 210};
         }
     }
     
@@ -135,19 +188,19 @@ void updatePlayer(Player* p, const Uint8* keys, Uint32 agora, SDL_Rect chaoR, hu
 		}
 	}
 	
-	if (p->pulando) {
+	if (p->pulando && !p->virando) {
         if (agora - p->ultimoFramePulo > p->intervaloFramePulo) {
         	p->ultimoFramePulo = agora;
     		p->framePulo++;
         	if (p->framePulo >= p->totalFramesPulo){
         		p->pulando = 0;
-        		if (p->dir == DIREITA) p->frameRect = (SDL_Rect){0,0,230,210};
-        		else p->frameRect = (SDL_Rect){0, 210 * 2, 230, 210};
+        		if (p->dir == DIREITA) p->framePernasRect = (SDL_Rect){0,0,230,210};
+        		else p->framePernasRect = (SDL_Rect){0, 210 * 2, 230, 210};
         		return;
 			}
 		}
         int linhaPulo = (p->dir == DIREITA) ? 4 : 5; // supondo linhas 4/5
-        p->frameRect = (SDL_Rect){230 * (p->framePulo % p->totalFramesPulo), 210 * linhaPulo, 230, 210};
+        p->framePernasRect = (SDL_Rect){230 * (p->framePulo % p->totalFramesPulo), 210 * linhaPulo, 230, 210};
 	}
 	
 	if (p->virando == 1) {
@@ -158,12 +211,11 @@ void updatePlayer(Player* p, const Uint8* keys, Uint32 agora, SDL_Rect chaoR, hu
 				p->virando = 0; 
 				p->frameIE = 0; 
 				p->dir = ESQUERDA;
-				p->frameRect = (SDL_Rect){0, 210 * 2, 230, 210};
+				p->framePernasRect = (SDL_Rect){0, 210 * 2, 230, 210};
 				return; 
 			}
-            p->frameRect = (SDL_Rect){230 * p->frameVirada, 210 * 1, 230, 210};
+            p->framePernasRect = (SDL_Rect){230 * p->frameVirada, 210 * 1, 230, 210};
         }
-        return;
     } 
 	if (p->virando == 2) {
         if (agora - p->ultimoFrameTroca > p->intervaloFrame) {
@@ -173,17 +225,16 @@ void updatePlayer(Player* p, const Uint8* keys, Uint32 agora, SDL_Rect chaoR, hu
 				p->virando = 0; 
 				p->frameID = 0; 
 				p->dir = DIREITA; 
-				p->frameRect = (SDL_Rect){0, 0, 230, 210};
+				p->framePernasRect = (SDL_Rect){0, 0, 230, 210};
 				return;
 			}
-            p->frameRect = (SDL_Rect){230 * p->frameVirada, 210 * 3, 230, 210};
+            p->framePernasRect = (SDL_Rect){230 * p->frameVirada, 210 * 3, 230, 210};
         }
-        return;
     }
 
     if (!p->pulando && !p->movendo && !p->virando && !p->atacando && vida->vidas > 0) {
-        if (p->dir == DIREITA) p->frameRect = (SDL_Rect){0,0,230,210};
-        else p->frameRect = (SDL_Rect){0, 210 * 2, 230, 210};
+        if (p->dir == DIREITA) p->framePernasRect = (SDL_Rect){0,0,230,210};
+        else p->framePernasRect = (SDL_Rect){0, 210 * 2, 230, 210};
     }
     
     p->pos.y += p->vely;
@@ -223,8 +274,32 @@ void updatePlayer(Player* p, const Uint8* keys, Uint32 agora, SDL_Rect chaoR, hu
 	}
 }
 
-void renderPlayer(Player* p, SDL_Renderer* ren, SDL_Texture* sprites, SDL_Rect camera){
+void ImpedirPassar(Player* p, SDL_Rect barreira)
+{
+    if (!SDL_HasIntersection(&p->pos, &barreira))
+        return;
+
+    // empurrar o player para fora da barreira
+    if (p->pos.x + p->pos.w > barreira.x &&
+        p->pos.x < barreira.x) 
+    {
+        // bateu pela esquerda da grade
+        p->pos.x = barreira.x - p->pos.w;
+    }
+    else if (p->pos.x < barreira.x + barreira.w &&
+             p->pos.x + p->pos.w > barreira.x + barreira.w)
+    {
+        // bateu pela direita (caso tenha câmeras que movem)
+        p->pos.x = barreira.x + barreira.w;
+    }
+}
+
+
+void renderPlayer(Player* p, SDL_Renderer* ren, SDL_Texture* sprites, SDL_Texture* spritesCorpo,SDL_Rect camera){
 	SDL_Rect playerScreen = p->pos;
     playerScreen.x -= camera.x;
-    SDL_RenderCopy(ren, sprites, &p->frameRect, &playerScreen);
+    SDL_RenderCopy(ren, sprites, &p->framePernasRect, &playerScreen);
+    if (p->atacando){
+    	SDL_RenderCopy(ren, spritesCorpo, &p->frameTroncoRect, &playerScreen);
+	}
 }
