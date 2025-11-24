@@ -4,6 +4,7 @@ void initPlayer(Player* p, SDL_Renderer* ren, int x, int y, int w, int h) {
     p->pos = (SDL_Rect){x,y,w,h};
 	p->framePernasRect = (SDL_Rect){0,0,230,210};
 	p->frameTroncoRect = (SDL_Rect){0,0,230,210};
+	p->frameFoiceRect = (SDL_Rect){0,0,230,100};
 	p->dir = DIREITA;
     p->vely = 0;
     p->gravidade = 1;
@@ -14,18 +15,19 @@ void initPlayer(Player* p, SDL_Renderer* ren, int x, int y, int w, int h) {
     p->frameID = 0;
 	p->frameIE = 0;
     p->ultimoFrameTroca = 0;
-    p->intervaloFrame = 120;
+    p->intervaloFrame = 60;
 
     p->atacando = 0;
-	p->hitboxPlayer = (SDL_Rect){0,0,0,0};
     p->tempoAtaque = 0;
-    p->intervaloEntreAtaques = 800;
+    p->intervaloEntreAtaques = 400;
+    p->frameAtaqueFoice = 0;
     p->frameAtaquePernas = 0;
     p->frameAtaqueTronco = 0;
     p->ultimoFrameAtaque = 0;
     p->intervaloFrameAtaque = 100;
     p->totalFramesAtaquePernas = 4;
     p->totalFramesAtaqueTronco = 6;
+    p->totalFramesAtaqueFoice = 6;
     p->dano = 1;
 
     p->pulando = 0;
@@ -38,8 +40,8 @@ void initPlayer(Player* p, SDL_Renderer* ren, int x, int y, int w, int h) {
 }
 
 void updatePlayer(Player* p, const Uint8* keys, Uint32 agora, SDL_Rect chaoR, hudVida* vida, Cenario* cenarios, int atual, SDL_Rect* camera, SDL_Renderer* ren){
-	int atacandoAgora = p->atacando;
-	
+	int framesFoiceCausaDano[6] = {0, 0, 0, 1, 1, 0};
+
 	if (keys[SDL_SCANCODE_X]) {
             if (!p->virando && !p->atacando && agora - p->tempoAtaque > p->intervaloEntreAtaques && vida->vidas > 0) {
                 p->atacando = 1;
@@ -51,6 +53,7 @@ void updatePlayer(Player* p, const Uint8* keys, Uint32 agora, SDL_Rect chaoR, hu
 				
 				p->framePernasRect = (SDL_Rect){0, 210 * linhaAtaquePernas, 230, 210};
 				p->frameTroncoRect = (SDL_Rect){0, 210 * linhaAtaqueTronco, 230, 210};
+				p->frameFoiceRect = (SDL_Rect){0, 100 * linhaAtaqueTronco, 230, 100};
 
             }
         }
@@ -68,11 +71,13 @@ void updatePlayer(Player* p, const Uint8* keys, Uint32 agora, SDL_Rect chaoR, hu
 			    	p->framePernasRect = (SDL_Rect){0, 0, 230, 210};
 				}
 			        
-			    else
-			        p->framePernasRect = (SDL_Rect){0, 210 * 2, 230, 210};
-			
+			    else{
+			    	p->framePernasRect = (SDL_Rect){0, 210 * 2, 230, 210};
+				}
+			        
 			    // Reset do tronco
 			    p->frameTroncoRect = (SDL_Rect){0, 0, 230, 210};
+			    p->frameFoiceRect = (SDL_Rect){0, 0, 230, 100};
 			
 			    // IMPORTANTE: zerar contadores
 			    p->frameAtaquePernas = 0;
@@ -84,7 +89,7 @@ void updatePlayer(Player* p, const Uint8* keys, Uint32 agora, SDL_Rect chaoR, hu
 			    int linhaAtaqueTronco = (p->dir == DIREITA) ? 0 : 1;
 			
 			    p->framePernasRect = (SDL_Rect){
-			        230 * (p->frameAtaquePernas % p->totalFramesAtaquePernas),
+					230 * (p->frameAtaquePernas % p->totalFramesAtaquePernas),
 			        210 * linhaAtaquePernas,
 			        230, 210
 			    };
@@ -94,27 +99,34 @@ void updatePlayer(Player* p, const Uint8* keys, Uint32 agora, SDL_Rect chaoR, hu
 			        210 * linhaAtaqueTronco,
 			        230, 210
 			    };
+			    
+			    p->frameFoiceRect = (SDL_Rect){
+			    	230 * (p->frameAtaqueTronco % p->totalFramesAtaqueTronco),
+			        100 * linhaAtaqueTronco,
+			        230, 100
+				};
 			}
     	}
 
         for (int i = 0; i < cenarios[atual].numPedintes; i++) {
     		Pedinte* pe = &cenarios[atual].pedintes[i];
     		if(pe->morto) continue;
-    		
-    		if(SDL_HasIntersection(&p->hitboxPlayer,&pe->pos)){
+    		if (framesFoiceCausaDano[p->frameAtaqueTronco] == 1){
+    			if(SDL_HasIntersection(&p->hitboxFoice,&pe->pos)){
 				pe->pos.x += (pe->dir == DIREITA) ? -RECUO_PEDINTE : RECUO_PEDINTE;
 
 	        	// aplica o dano do player
 		        pe->vida -= p->dano;
 		
 		        // se a vida chegou a zero → morreu
-		        if (pe->vida <= 0) {
-		            pe->morto = 1;
-		        }
-    		}
+			        if (pe->vida <= 0) {
+			            pe->morto = 1;
+			        }
+    			}
+			}	
 		}
 		
-		SDL_Rect hitScreen = p->hitboxPlayer;
+		SDL_Rect hitScreen = p->frameFoiceRect;
         hitScreen.x -= camera->x;
         
         SDL_SetRenderDrawColor(ren, 255, 0, 0, 128);
@@ -123,23 +135,23 @@ void updatePlayer(Player* p, const Uint8* keys, Uint32 agora, SDL_Rect chaoR, hu
     
     if(p->atacando){
 	    // largura e altura do golpe (ajuste conforme sua sprite)
-	    int hitW = 80;
-	    int hitH = 80;
+	    int hitW = 75;
+	    int hitH = 50;
 	
 	    if (p->dir == DIREITA) {
-	        p->hitboxPlayer.x = p->pos.x + p->pos.w - 20; // pequeno offset
-	        p->hitboxPlayer.y = p->pos.y + 40;            // alinhamento vertical
+	        p->hitboxFoice.x = p->pos.x + p->pos.w - 20; // pequeno offset
+	        p->hitboxFoice.y = p->pos.y + 40;            // alinhamento vertical
 	    } 
 		else {
-	        p->hitboxPlayer.x = p->pos.x - hitW + 20;
-	        p->hitboxPlayer.y = p->pos.y + 40;
+	        p->hitboxFoice.x = p->pos.x - hitW + 20;
+	        p->hitboxFoice.y = p->pos.y + 40;
 	    }
 	
-	    p->hitboxPlayer.w = hitW;
-	    p->hitboxPlayer.h = hitH;
+	    p->hitboxFoice.w = hitW;
+	    p->hitboxFoice.h = hitH;
 	}
 	else {
-        p->hitboxPlayer = (SDL_Rect){0,0,0,0};
+        p->frameFoiceRect = (SDL_Rect){0,0,0,0};
     }
     
     if (keys[SDL_SCANCODE_LEFT]) {
@@ -295,11 +307,19 @@ void ImpedirPassar(Player* p, SDL_Rect barreira)
 }
 
 
-void renderPlayer(Player* p, SDL_Renderer* ren, SDL_Texture* sprites, SDL_Texture* spritesCorpo,SDL_Rect camera){
+void renderPlayer(Player* p, SDL_Renderer* ren, SDL_Texture* sprites, SDL_Texture* spritesCorpo, SDL_Texture* spritesFoice,SDL_Rect camera){
 	SDL_Rect playerScreen = p->pos;
     playerScreen.x -= camera.x;
+    playerScreen.y -= camera.y; // se houver movimento vertical de câmera
+
+    SDL_Rect foiceScreen = p->hitboxFoice;
+    foiceScreen.x -= camera.x;
+    foiceScreen.y -= camera.y;
+    
     SDL_RenderCopy(ren, sprites, &p->framePernasRect, &playerScreen);
     if (p->atacando){
     	SDL_RenderCopy(ren, spritesCorpo, &p->frameTroncoRect, &playerScreen);
+    	SDL_RenderCopy(ren, spritesFoice, &p->frameFoiceRect, &foiceScreen);
+    	
 	}
 }
