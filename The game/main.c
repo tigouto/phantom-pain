@@ -80,11 +80,12 @@ void runGame(SDL_Window* win, SDL_Renderer* ren, TTF_Font* fontePadrao){
 	int atual = 0;
     // --- Texturas básicas (sprites, HUD, pedinte, flor) ---
     SDL_Texture* sprites = IMG_LoadTexture(ren, "./src/entidades/ss reaper.png");
+    SDL_Texture* spritesCorpo = IMG_LoadTexture(ren,"./src/entidades/ss reaper ataque.png");
     SDL_Texture* hud = IMG_LoadTexture(ren, "./src/mapa/hud.png");
     SDL_Texture* texPedinte = IMG_LoadTexture(ren, "./src/entidades/ss pedinte.png");
     SDL_Texture* texFlor = IMG_LoadTexture(ren, "./src/mapa/ss flor.png"); // novo
 
-    assert(sprites && hud && texPedinte && texFlor);
+    assert(sprites && spritesCorpo && hud && texPedinte && texFlor);
 
     // Texturas de cenário
     SDL_Texture* fundo_tex  = IMG_LoadTexture(ren, "./src/mapa/ponte-f/bg+lua.png");
@@ -97,9 +98,14 @@ void runGame(SDL_Window* win, SDL_Renderer* ren, TTF_Font* fontePadrao){
 	SDL_Texture* texAcampamento = IMG_LoadTexture(ren, "./src/mapa/ponte-f/acampamento.png");
     // sala textures (exemplo)
     SDL_Texture* fundo_sala = IMG_LoadTexture(ren, "./src/mapa/sala-p/background.png");
+    SDL_Texture* porta_sala = IMG_LoadTexture(ren, "./src/mapa/sala-p/porta.png");
     SDL_Texture* borda_sala = IMG_LoadTexture(ren, "./src/mapa/sala-p/borda.png");
     SDL_Texture* atras_sala = IMG_LoadTexture(ren, "./src/mapa/sala-p/fundo-atras.png");
     SDL_Texture* frente_sala = IMG_LoadTexture(ren, "./src/mapa/sala-p/fundo-frente.png");
+    // texturas acampamento
+	SDL_Texture* fundo_acampamento = IMG_LoadTexture(ren, "./src/mapa/acampamento/fundo-acampamento.png");
+	SDL_Texture* frente_acampamento = IMG_LoadTexture(ren, "./src/mapa/acampamento/frente-acampamento.png");
+	SDL_Texture* mesa_acampamento = IMG_LoadTexture(ren, "./src/mapa/acampamento/mesa-acampamento.png");
 
     // --- Preparar cenários (igual ao seu original) ---
     Cenario cenarios[MAX_CENARIOS];
@@ -113,6 +119,8 @@ void runGame(SDL_Window* win, SDL_Renderer* ren, TTF_Font* fontePadrao){
     SDL_Rect ponteR = { 0, h - ((100 * h) / 100), 4000, (100 * h) / 100 };
     SDL_Rect portaR = { 0, h - 399 - ((h * 7) / 100), 115, 400 };
     SDL_Rect portaProxR = { 4000, 0, 70, h };
+    SDL_Rect hitboxGradeLocal = {w-(w*6.5)/100, 0, (w*6.5)/100, h };
+
     
     addAtras(&cenarios[0], portao_tex, portaR);
     addAtras(&cenarios[0], ponte_prox, portaProxR);
@@ -134,12 +142,41 @@ void runGame(SDL_Window* win, SDL_Renderer* ren, TTF_Font* fontePadrao){
 	cenarios[1].largura = w;
 	cenarios[1].altura = h;
 	
+	SDL_Rect portaSalaRect = {0, 0, (w*6.5)/100, h*70/100};
+	
 	addAtras(&cenarios[1], fundo_sala, (SDL_Rect){0, 0, w, h});
 	addAtras(&cenarios[1], atras_sala, (SDL_Rect){0, 0, w, h});
 	addAtras(&cenarios[1], frente_sala, (SDL_Rect){0, 0, w, h});
+	addFrente(&cenarios[1], porta_sala, portaSalaRect);
 	addFrente(&cenarios[1], borda_sala, (SDL_Rect){0, 0, w, h});
+	
+	// --- NOVO --- variáveis da porta
+	int portaDescendo = 0;
+	int portaAlturaFinal = h - portaSalaRect.h;   // encosta no chão
+	float portaVel = 600.0f; // pixels por segundo
+	float portaY = 0;        // posição atual em float
+	int portaFechada = 0;
+
 
 	totalCenarios++;
+	
+	initCenario(&cenarios[2]);
+	cenarios[2].fundo = fundo_acampamento;
+	
+	// posição: começa logo após o cenário 1
+	cenarios[2].posX = cenarios[1].posX + cenarios[1].largura;
+	
+	// largura: igual à tela (pode alterar se o acampamento for maior)
+	cenarios[2].largura = w;
+	cenarios[2].altura = h;
+	
+	// camadas "atrás" do player
+	addAtras(&cenarios[2], fundo_acampamento, (SDL_Rect){0, 0, w, h});
+	addAtras(&cenarios[2], mesa_acampamento,(SDL_Rect){ w/2 - 150, h - 350, 300, 300 });
+	addFrente(&cenarios[2], frente_acampamento, (SDL_Rect){0, 0, w, h});
+	
+	totalCenarios++;
+
 
 
     // --- Jogador / HUD / Física / Ataque (integração do teste.c) ---
@@ -196,7 +233,7 @@ void runGame(SDL_Window* win, SDL_Renderer* ren, TTF_Font* fontePadrao){
     // render inicial + fade in
     SDL_RenderClear(ren);
     desenharCenario(ren, &cenarios[atual], camera, w, h,w,h);
-    SDL_RenderCopy(ren, sprites, &player.frameRect, &(SDL_Rect){player.pos.x - camera.x, player.pos.y, player.pos.w, player.pos.h});
+    SDL_RenderCopy(ren, sprites, &player.framePernasRect, &(SDL_Rect){player.pos.x - camera.x, player.pos.y, player.pos.w, player.pos.h});
     SDL_RenderPresent(ren);
     fade_out_in(ren, w, h, 0);
 
@@ -224,6 +261,27 @@ void runGame(SDL_Window* win, SDL_Renderer* ren, TTF_Font* fontePadrao){
 	        }
         	
             updatePlayer(&player, keys, agora, chaoR, &vida, cenarios, atual, &camera, ren);
+        	ImpedirPassar(&player, portaR);
+			if (atual == 1) {
+			    SDL_Rect hitboxGradeGlobal = hitboxGradeLocal;
+			    hitboxGradeGlobal.x += cenarios[1].posX; // <-- deslocamento correto
+			
+			    ImpedirPassar(&player, hitboxGradeGlobal);
+			    
+			    int meioCenario = cenarios[1].posX + cenarios[1].largura / 2;
+
+			    if (!portaFechada && !portaDescendo && player.pos.x > meioCenario) {
+			        portaDescendo = 1;   // inicia animação
+			        portaY = portaSalaRect.y;
+			    }
+			    
+			    if(portaFechada){
+			    	SDL_Rect portaGlobal = cenarios[1].frente[0].pos;
+				    portaGlobal.x += cenarios[1].posX;  // converter para coordenada global
+				    ImpedirPassar(&player, portaGlobal);
+				}
+			}
+
 
             // Atualiza pedintes
             for (int i = 0; i < cenarios[atual].numPedintes; i++){
@@ -270,6 +328,23 @@ void runGame(SDL_Window* win, SDL_Renderer* ren, TTF_Font* fontePadrao){
             }
         }
         
+        if (portaDescendo) {
+		    float dt = espera / 1000.0f; // 16 ms → 0.016 s
+		
+		    portaY += portaVel * dt;
+		
+		    if (portaY >= portaAlturaFinal) {
+		        portaY = portaAlturaFinal;
+		        portaDescendo = 0; // terminou
+		        portaFechada = 1;
+		    }
+		    // aplica ao rect da camada
+		    cenarios[1].frente[0].pos.y = (int)portaY;  
+		}
+		
+		
+
+        
 
         // --- RENDER ---
         SDL_RenderClear(ren);
@@ -289,7 +364,7 @@ void runGame(SDL_Window* win, SDL_Renderer* ren, TTF_Font* fontePadrao){
 		}
 
         // jogador
-        renderPlayer(&player, ren, sprites, camera);
+        renderPlayer(&player, ren, sprites, spritesCorpo, camera);
 
         // desenha frente cenário
         desenharFrente(ren, &cenarios[atual], camera);
@@ -352,6 +427,7 @@ void runGame(SDL_Window* win, SDL_Renderer* ren, TTF_Font* fontePadrao){
     if (frente_sala) SDL_DestroyTexture(frente_sala);
 
     SDL_DestroyTexture(hud);
+    SDL_DestroyTexture(spritesCorpo);
     SDL_DestroyTexture(sprites);
     SDL_DestroyTexture(texPedinte);
     SDL_DestroyTexture(texFlor);
