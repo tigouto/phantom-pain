@@ -135,7 +135,7 @@ void updatePlayer(Player* p, const Uint8* keys, Uint32 agora, SDL_Rect chaoR, hu
     
     if(p->atacando){
 	    // largura e altura do golpe (ajuste conforme sua sprite)
-	    int hitW = 150;
+	    int hitW = 130;
 	    int hitH = 50;
 	
 	    if (p->dir == DIREITA) {

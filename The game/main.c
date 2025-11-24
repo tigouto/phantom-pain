@@ -11,61 +11,46 @@
 
 /* ----------------- FUNÇÃO PRINCIPAL DO JOGO (runGame) ----------------- */
 
-
-
-void desenharTexto(SDL_Renderer* renderer, const char* texto, int x, int y, SDL_Color cor, TTF_Font* fonte){
-    // Renderiza o texto em surface
-    SDL_Surface* surface = TTF_RenderUTF8_Blended(fonte, texto, cor);
-    if (!surface) {
-        printf("Erro na TTF_RenderUTF8_Blended: %s\n", TTF_GetError());
-        return;
-    }
-
-    // Transforma em textura
-    SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface);
-    if (!texture) {
-        printf("Erro na SDL_CreateTextureFromSurface: %s\n", SDL_GetError());
-        SDL_FreeSurface(surface);
-        return;
-    }
-
-    // Pega tamanho do texto
-    SDL_Rect dst;
-    dst.x = x;
-    dst.y = y;
-    dst.w = surface->w;
-    dst.h = surface->h;
-
-    // Renderiza
-    SDL_RenderCopy(renderer, texture, NULL, &dst);
-
-    // Libera
-    SDL_DestroyTexture(texture);
-    SDL_FreeSurface(surface);
-}
-
-void renderMenuPause(SDL_Renderer* ren, int w, int h, TTF_Font* fontePadrao, int opcaoPause){
+void renderMenuPause(SDL_Renderer* ren, int w, int h, int opcaoPause, SDL_Texture* menuPauseC, SDL_Texture* contPause, SDL_Texture* sairPause, SDL_Texture* menuPauseB){
+    // Fundo escuro
     SDL_SetRenderDrawBlendMode(ren, SDL_BLENDMODE_BLEND);
-    SDL_SetRenderDrawColor(ren,0,0,0,150);
-    SDL_Rect tela = {0,0,w,h};
+    SDL_SetRenderDrawColor(ren, 0, 0, 0, 160);
+    SDL_Rect tela = {0, 0, w, h};
     SDL_RenderFillRect(ren, &tela);
-	SDL_Color branco = {255, 255, 255, 255};
-	SDL_Color cinza = {180, 180, 180, 255};
-	SDL_Color amarelo = {255, 255, 0, 255};
-	
-	desenharTexto(ren,"PAUSADO", 500, 200, branco, fontePadrao);
 
-	if (opcaoPause == 0)
-	    desenharTexto(ren,"X Retornar", 500, 400, amarelo, fontePadrao);
-	else
-	    desenharTexto(ren,"Retornar", 500, 400, cinza, fontePadrao);
+    // ----- FLOR DE CIMA -----
+    SDL_Rect topo = { (w-670*0.8)/2, 50, 670*0.8, 170*0.8 };
+    SDL_RenderCopy(ren, menuPauseC, NULL, &topo);
 
-    if(opcaoPause == 1){
-    	desenharTexto(ren,"X Sair para o menu",500,500,amarelo,fontePadrao);
-	}else{
-		desenharTexto(ren,"Sair para o menu",500,500,cinza,fontePadrao);
-	}
+    // ----- BOTÕES -----
+    int btnW = 350, btnH = 80;
+    int startY = topo.y + topo.h + 60;
+
+    SDL_Rect btnContinuar = { (w - 660*0.8)/2, startY, 660*0.8, 70*0.8 };
+    SDL_Rect btnSair      = { (w - 920*0.8)/2, startY + btnH + 45, 920*0.8, 70*0.8 };
+
+    SDL_Rect srcSelC = { 660,0,660,70 }; // highlight
+    SDL_Rect srcNC   = {   0,0,660,70 }; // normal
+    SDL_Rect srcSelS = { 920,0,920,70 }; // highlight
+    SDL_Rect srcNS   = {   0,0,920,70 }; // normal
+
+    // Continuar
+    if (opcaoPause == 0)
+        SDL_RenderCopy(ren, contPause, &srcSelC, &btnContinuar);
+    else
+        SDL_RenderCopy(ren, contPause, &srcNC, &btnContinuar);
+
+    // Sair
+    if (opcaoPause == 1)
+        SDL_RenderCopy(ren, sairPause, &srcSelS, &btnSair);
+    else
+        SDL_RenderCopy(ren, sairPause, &srcNS, &btnSair);
+
+    // ----- FLOR DE BAIXO -----
+    SDL_Rect baixo = { (w-680*0.8)/2, btnSair.y + btnH + 80, 680*0.8, 170*0.8 };
+    SDL_RenderCopy(ren, menuPauseB, NULL, &baixo);
 }
+
 
 void runGame(SDL_Window* win, SDL_Renderer* ren, TTF_Font* fontePadrao){
 	
@@ -81,11 +66,16 @@ void runGame(SDL_Window* win, SDL_Renderer* ren, TTF_Font* fontePadrao){
     // --- Texturas básicas (sprites, HUD, pedinte, flor) ---
     SDL_Texture* sprites = IMG_LoadTexture(ren, "./src/entidades/ss reaper.png");
     SDL_Texture* spritesCorpo = IMG_LoadTexture(ren,"./src/entidades/ss reaper ataque.png");
+    SDL_Texture* spritesFoice = IMG_LoadTexture(ren,"./src/entidades/ss lamina.png");
     SDL_Texture* hud = IMG_LoadTexture(ren, "./src/mapa/hud.png");
     SDL_Texture* texPedinte = IMG_LoadTexture(ren, "./src/entidades/ss pedinte.png");
     SDL_Texture* texFlor = IMG_LoadTexture(ren, "./src/mapa/ss flor.png"); // novo
 
-    assert(sprites && spritesCorpo && hud && texPedinte && texFlor);
+	// TEXTURAS MENU PAUSE
+	SDL_Texture* menuPauseC = IMG_LoadTexture(ren, "./src/menu/pause/flor-cima-pause.png");
+    SDL_Texture* contPause = IMG_LoadTexture(ren, "./src/menu/pause/continuar-pause.png");
+    SDL_Texture* sairPause = IMG_LoadTexture(ren, "./src/menu/pause/sair-pause.png");
+    SDL_Texture* menuPauseB = IMG_LoadTexture(ren, "./src/menu/pause/flor-baixo-pause.png");
 
     // Texturas de cenário
     SDL_Texture* fundo_tex  = IMG_LoadTexture(ren, "./src/mapa/ponte-f/bg+lua.png");
@@ -364,7 +354,7 @@ void runGame(SDL_Window* win, SDL_Renderer* ren, TTF_Font* fontePadrao){
 		}
 
         // jogador
-        renderPlayer(&player, ren, sprites, spritesCorpo, camera);
+        renderPlayer(&player, ren, sprites, spritesCorpo, spritesFoice, camera);
 
         // desenha frente cenário
         desenharFrente(ren, &cenarios[atual], camera);
@@ -378,7 +368,15 @@ void runGame(SDL_Window* win, SDL_Renderer* ren, TTF_Font* fontePadrao){
 		renderHudFlores(ren, texFlor, vida, w, vida.vidaRect);
 
         if(jogoPausado){
-            renderMenuPause(ren,w,h,fontePadrao,opcaoPause);
+            renderMenuPause(
+			    ren, w, h,
+			    opcaoPause,
+			    menuPauseC,
+			    contPause,
+			    sairPause,
+			    menuPauseB
+			);
+
         
             if (isevt && evt.type == SDL_KEYDOWN) {	
             	if (podeUsarEsc && evt.key.keysym.scancode == SDL_SCANCODE_ESCAPE) {
@@ -427,6 +425,7 @@ void runGame(SDL_Window* win, SDL_Renderer* ren, TTF_Font* fontePadrao){
     if (frente_sala) SDL_DestroyTexture(frente_sala);
 
     SDL_DestroyTexture(hud);
+    SDL_DestroyTexture(spritesFoice);
     SDL_DestroyTexture(spritesCorpo);
     SDL_DestroyTexture(sprites);
     SDL_DestroyTexture(texPedinte);
