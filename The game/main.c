@@ -1,7 +1,6 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
 #include <SDL2/SDL_mixer.h>
-#include <SDL2/SDL_ttf.h>
 #include <assert.h>
 #include <stdio.h>
 #include <math.h>
@@ -52,8 +51,8 @@ void renderMenuPause(SDL_Renderer* ren, int w, int h, int opcaoPause, SDL_Textur
 }
 
 
-void runGame(SDL_Window* win, SDL_Renderer* ren, TTF_Font* fontePadrao){
-	
+void runGame(SDL_Window* win, SDL_Renderer* ren){
+	int dentro = 0;
 	int jogoPausado = 0;
 	int opcaoPause = 0;
 	int podeUsarEsc = 1;
@@ -110,6 +109,8 @@ void runGame(SDL_Window* win, SDL_Renderer* ren, TTF_Font* fontePadrao){
     SDL_Rect portaR = { 0, h - 399 - ((h * 7) / 100), 115, 400 };
     SDL_Rect portaProxR = { 4000, 0, 70, h };
     SDL_Rect hitboxGradeLocal = {w-(w*6.5)/100, 0, (w*6.5)/100, h };
+    SDL_Rect hitboxBarreiraC1 = {w/3, 0, w/3, h };
+    SDL_Rect hitboxBarreiraC2 = {w-(w/3)/100, 0, (w/3)/100, h };
 
     
     addAtras(&cenarios[0], portao_tex, portaR);
@@ -250,8 +251,9 @@ void runGame(SDL_Window* win, SDL_Renderer* ren, TTF_Font* fontePadrao){
 	            }
 	        }
         	
-            updatePlayer(&player, keys, agora, chaoR, &vida, cenarios, atual, &camera, ren);
+            updatePlayer(&player, keys, agora, chaoR, &vida, cenarios, atual, &camera, ren,w);
         	ImpedirPassar(&player, portaR);
+
 			if (atual == 1) {
 			    SDL_Rect hitboxGradeGlobal = hitboxGradeLocal;
 			    hitboxGradeGlobal.x += cenarios[1].posX; // <-- deslocamento correto
@@ -281,7 +283,24 @@ void runGame(SDL_Window* win, SDL_Renderer* ren, TTF_Font* fontePadrao){
 		    // Atualiza checkpoints
 		    float deltaTime = 16.0f; // o tempo decorrido entre frames
 
-		    updateElementos(&cenarios[atual], player.pos, keys, deltaTime, &vida.vidas);
+		    updateElementos(&cenarios[atual], player.pos, keys, deltaTime, &vida.vidas, &atual, &dentro, w);
+            if(atual == 2 && !dentro){
+                fade_out_in(ren,w,h,1);
+                player.pos.x = cenarios[2].posX + w*2/3 - 20;
+                fade_out_in(ren,w,h,0);
+                dentro = 1;
+
+                SDL_Rect hitboxGradeGlobal1 = hitboxBarreiraC1;
+			    hitboxGradeGlobal1.x += cenarios[2].posX + cenarios[2].largura; // <-- deslocamento correto
+			
+			    ImpedirPassar(&player, hitboxGradeGlobal1);
+
+                SDL_Rect hitboxGradeGlobal2 = hitboxBarreiraC2;
+			    hitboxGradeGlobal2.x += cenarios[2].posX + cenarios[2].largura; // <-- deslocamento correto
+			
+			    ImpedirPassar(&player, hitboxGradeGlobal2);
+            }
+
 
             // Invulnerabilidade timeout
             if (vida.invulneravel && agora - vida.tempoInvulneravel > TEMPO_INVULNERAVEL) {
@@ -441,9 +460,6 @@ void runGame(SDL_Window* win, SDL_Renderer* ren, TTF_Font* fontePadrao){
 int main(int argc, char* args[]) {
     SDL_Init(SDL_INIT_EVERYTHING);
     IMG_Init(IMG_INIT_PNG);
-    TTF_Init();
-	TTF_Font* fontePadrao = TTF_OpenFont("./src/fonte/minhaFonte.TTF", 48);
-	if (!fontePadrao) printf("Erro ao carregar fonte: %s\n", TTF_GetError());
 	
     SDL_Window* win = SDL_CreateWindow("Phantom Pain v0.1", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
                                        0, 0, SDL_WINDOW_FULLSCREEN_DESKTOP);
@@ -526,7 +542,7 @@ int main(int argc, char* args[]) {
                         case SDL_SCANCODE_RETURN:
                         case SDL_SCANCODE_Z:
                             if(selecionadoN == 1){
-                                runGame(win, ren, fontePadrao);
+                                runGame(win, ren);
                             } else if(selecionadoS == 1){
                                 rodando = 0;
                             }
@@ -556,7 +572,7 @@ int main(int argc, char* args[]) {
                 case SDL_MOUSEBUTTONDOWN:
                     if (evt.button.button == SDL_BUTTON_LEFT) {
                         if (selecionadoN == 1) {
-                            runGame(win, ren, fontePadrao);
+                            runGame(win, ren);
                         } else if (selecionadoC == 1) {
                             // continuar jogo (não implementado)
                         } else if (selecionadoS == 1) {
