@@ -39,7 +39,7 @@ void initPlayer(Player* p, SDL_Renderer* ren, int x, int y, int w, int h) {
     p->totalFramesPulo = 4;
 }
 
-void updatePlayer(Player* p, const Uint8* keys, Uint32 agora, SDL_Rect chaoR, hudVida* vida, Cenario* cenarios, int atual, SDL_Rect* camera, SDL_Renderer* ren){
+void updatePlayer(Player* p, const Uint8* keys, Uint32 agora, SDL_Rect chaoR, hudVida* vida, Cenario* cenarios, int atual, SDL_Rect* camera, SDL_Renderer* ren, int w){
 	int framesFoiceCausaDano[6] = {0, 0, 0, 1, 1, 0};
 
 	if (keys[SDL_SCANCODE_X]) {
@@ -113,15 +113,9 @@ void updatePlayer(Player* p, const Uint8* keys, Uint32 agora, SDL_Rect chaoR, hu
     		if(pe->morto) continue;
     		if (framesFoiceCausaDano[p->frameAtaqueTronco] == 1){
     			if(SDL_HasIntersection(&p->hitboxFoice,&pe->pos)){
-				pe->pos.x += (pe->dir == DIREITA) ? -RECUO_PEDINTE : RECUO_PEDINTE;
+				int direcaoHit = (p->pos.x < pe->pos.x) ? 1 : -1;
+                                pedinteTomarDano(pe, direcaoHit);
 
-	        	// aplica o dano do player
-		        pe->vida -= p->dano;
-		
-		        // se a vida chegou a zero → morreu
-			        if (pe->vida <= 0) {
-			            pe->morto = 1;
-			        }
     			}
 			}	
 		}
@@ -156,11 +150,11 @@ void updatePlayer(Player* p, const Uint8* keys, Uint32 agora, SDL_Rect chaoR, hu
     
     if (keys[SDL_SCANCODE_LEFT]) {
         p->movendo = 1;
-        
+
         if (p->dir == DIREITA && p->virando != 1 ) {
             p->virando = 1; p->frameVirada = 0; p->ultimoFrameTroca = agora;
         }
-        if (atual != 0 || p->pos.x > 55) p->pos.x -= 13;
+        if (atual != 0 || p->pos.x > 55 || atual == 2 && p->pos.x > w/3) p->pos.x -= 13;
         p->dir = ESQUERDA;
         
         if (p->atacando) {
@@ -232,7 +226,7 @@ void updatePlayer(Player* p, const Uint8* keys, Uint32 agora, SDL_Rect chaoR, hu
         		return;
 			}
 		}
-        int linhaPulo = (p->dir == DIREITA) ? 4 : 5; // supondo linhas 4/5
+        int linhaPulo = (p->dir == DIREITA) ? 4 : 5; 
         p->framePernasRect = (SDL_Rect){230 * (p->framePulo % p->totalFramesPulo), 210 * linhaPulo, 230, 210};
 	}
 	
