@@ -218,8 +218,10 @@ void runGame(SDL_Window* win, SDL_Renderer* ren){
 		270  // altura
 	);
 
+
 	// NPCs
     addPedinte(&cenarios[0], 3*w/5, chaoR.y-100, 110, 100);
+    addPedinte(&cenarios[0], 10*w/5, chaoR.y-100, 110, 100);
 
     // render inicial + fade in
     SDL_RenderClear(ren);
@@ -273,6 +275,14 @@ void runGame(SDL_Window* win, SDL_Renderer* ren){
 				    ImpedirPassar(&player, portaGlobal);
 				}
 			}
+			
+			if (atual == 2) {
+			    SDL_Rect hitboxGradeGlobal2 = hitboxGradeLocal;
+			    hitboxGradeGlobal2.x = cenarios[2].posX + w/3.5; // <-- deslocamento correto
+			
+			    ImpedirPassar(&player, hitboxGradeGlobal2);
+
+			}
 
 
             // Atualiza pedintes
@@ -283,36 +293,14 @@ void runGame(SDL_Window* win, SDL_Renderer* ren){
 		    // Atualiza checkpoints
 		    float deltaTime = 16.0f; // o tempo decorrido entre frames
 
-		    updateElementos(&cenarios[atual], player.pos, keys, deltaTime, &vida.vidas, &atual, &dentro, w);
+	    updateElementos(&cenarios[atual], player.pos, keys, deltaTime, &vida.vidas, &atual, &dentro, w);
             if(atual == 2 && !dentro){
                 fade_out_in(ren,w,h,1);
-                player.pos.x = cenarios[2].posX + w*2/3 - 20;
+                player.pos.x = cenarios[atual].posX + w*2/3 - 20;
                 fade_out_in(ren,w,h,0);
                 dentro = 1;
-
-                SDL_Rect hitboxGradeGlobal1 = hitboxBarreiraC1;
-			    hitboxGradeGlobal1.x += cenarios[2].posX + cenarios[2].largura; // <-- deslocamento correto
-			
-			    ImpedirPassar(&player, hitboxGradeGlobal1);
-
-                SDL_Rect hitboxGradeGlobal2 = hitboxBarreiraC2;
-			    hitboxGradeGlobal2.x += cenarios[2].posX + cenarios[2].largura; // <-- deslocamento correto
-			
-			    ImpedirPassar(&player, hitboxGradeGlobal2);
             }
-
-
-            // Invulnerabilidade timeout
-            if (vida.invulneravel && agora - vida.tempoInvulneravel > TEMPO_INVULNERAVEL) {
-                vida.invulneravel = 0;
-            }
-
-            // câmera
-            camera.x = player.pos.x + player.pos.w/2 - w/2;
-            if (camera.x < cenarios[atual].posX) camera.x = cenarios[atual].posX;
-            if (camera.x > cenarios[atual].posX + cenarios[atual].largura - w)
-                camera.x = cenarios[atual].posX + cenarios[atual].largura - w;
-
+ if(!dentro){
             // transições de cenario
             if (player.pos.x > cenarios[atual].posX + cenarios[atual].largura && (atual + 1) < totalCenarios) {
                 fade_out_in(ren, w, h, 1);
@@ -325,7 +313,7 @@ void runGame(SDL_Window* win, SDL_Renderer* ren){
                     camera.x = cenarios[atual].posX + cenarios[atual].largura - w;
                 fade_out_in(ren, w, h, 0);
             }
-            if (player.pos.x + player.pos.w < cenarios[atual].posX && atual > 0) {
+            if (player.pos.x + player.pos.w < cenarios[atual].posX) {
                 fade_out_in(ren, w, h, 1);
                 atual--;
                 player.pos.x = cenarios[atual].posX + cenarios[atual].largura - 120;
@@ -335,6 +323,20 @@ void runGame(SDL_Window* win, SDL_Renderer* ren){
                     camera.x = cenarios[atual].posX + cenarios[atual].largura - w;
                 fade_out_in(ren, w, h, 0);
             }
+            }
+
+            // Invulnerabilidade timeout
+            if (vida.invulneravel && agora - vida.tempoInvulneravel > TEMPO_INVULNERAVEL) {
+                vida.invulneravel = 0;
+            }
+
+            // câmera
+            camera.x = player.pos.x + player.pos.w/2 - w/2;
+            if (camera.x < cenarios[atual].posX) camera.x = cenarios[atual].posX;
+            if (camera.x > cenarios[atual].posX + cenarios[atual].largura - w)
+                camera.x = cenarios[atual].posX + cenarios[atual].largura - w;
+            
+         
         }
         
         if (portaDescendo) {
