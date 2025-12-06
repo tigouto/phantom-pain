@@ -66,6 +66,23 @@ void addAcampamentoElemento(Cenario* c, SDL_Texture* tex, SDL_Rect pos, int numF
     }
 }
 
+void addMesaElemento(Cenario* c, SDL_Texture* tex, SDL_Rect pos, int numFrames, int larguraFrame, int alturaFrame){
+	if (c->numElementos < MAX_ELEMENTOS) {
+        ElementoCenario e;
+        e.tipo = TIPO_ELEMENTO_MESA;
+        e.mesa = (Mesa){
+            .tex = tex,
+            .pos = pos,
+            .frameAtual = 0,
+            .numFrames = numFrames,
+            .larguraFrame = larguraFrame,
+            .alturaFrame = alturaFrame,
+            .interagindo = 0
+        };
+        c->elementos[c->numElementos++] = e;
+    }
+}
+
 void desenharCenario(SDL_Renderer* ren, Cenario* c, SDL_Rect camera, int screenW, int screenH,int w,int h) {
     if (!c) return;
 
@@ -194,28 +211,40 @@ void renderAcampamento(SDL_Renderer* ren, Acampamento* ac, SDL_Rect camera) {
     SDL_RenderCopy(ren, ac->tex, &src, &dest);
 }
 
-void updateElementos(Cenario* c, SDL_Rect player, const Uint8* keys, float deltaTime, int* vidas) {
-    for (int i = 0; i < c->numElementos; i++) {
+void renderMesa(SDL_Renderer* ren, Mesa* m, SDL_Rect camera) {
+    SDL_Rect src = {
+        m->frameAtual * m->larguraFrame,
+        0,
+        m->larguraFrame,
+        m->alturaFrame
+    };
+    
+	SDL_Rect dest = m->pos;
+    SDL_RenderCopy(ren, m->tex, &src, &dest);
+}
+
+void updateElementos(Cenario* c, SDL_Rect player, const Uint8* keys, float deltaTime, int* vidas, int* atual, int* dentro, int w) {
+
+	for (int i = 0; i < c->numElementos; i++) {
         ElementoCenario* e = &c->elementos[i];
         switch (e->tipo) {
             case TIPO_ELEMENTO_CHECKPOINT:
                 updateCheckpoint(&e->checkpoint, player, deltaTime);
                 break;
             case TIPO_ELEMENTO_ACAMPAMENTO:
-            	if(SDL_HasIntersection(&player, &e->acampamento.pos)){
-            		e->acampamento.frameAtual = 1;
-				}
-				if(!SDL_HasIntersection(&player, &e->acampamento.pos)){
-            		e->acampamento.frameAtual = 0;
-				}
+            	e->acampamento.frameAtual = SDL_HasIntersection(&player, &e->acampamento.pos) ? 1 : 0;
             	
-                if (SDL_HasIntersection(&player, &e->acampamento.pos) && keys[SDL_SCANCODE_C]) {
+                if (e->acampamento.frameAtual == 1 && keys[SDL_SCANCODE_C]) {
                     e->acampamento.interagindo = 1;
-                    *vidas = 3;
+                    
+                    *atual = 2;
                 } else {
                     e->acampamento.interagindo = 0;
                 }
                 break;
+            case TIPO_ELEMENTO_MESA:
+            	e->mesa.frameAtual = SDL_HasIntersection(&player, &e->mesa.pos) ? 1 : 0;
+            	break;
             default:
                 break;
         }
@@ -232,6 +261,9 @@ void renderElementos(SDL_Renderer* ren, Cenario* c, SDL_Rect camera) {
             case TIPO_ELEMENTO_ACAMPAMENTO:
                 renderAcampamento(ren, &e->acampamento, camera);
                 break;
+            case TIPO_ELEMENTO_MESA:
+            	renderMesa(ren, &e->mesa, camera);
+            	break;
             default: break;
         }
     }
