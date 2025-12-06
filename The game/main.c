@@ -219,7 +219,7 @@ void runGame(SDL_Window* win, SDL_Renderer* ren){
 	addMesaElemento(
 		&cenarios[2],
 		texMesa,
-		(SDL_Rect){ w/2.8 , h-(ponteR.y+ponteR.h)/15-203, 200, 200 },
+		(SDL_Rect){ 200 , h-(ponteR.y+ponteR.h)/15-203, 200, 200 },
 		2,
 		270,
 		280
@@ -227,7 +227,7 @@ void runGame(SDL_Window* win, SDL_Renderer* ren){
 
 	// NPCs
     addPedinte(&cenarios[0], 3*w/5, chaoR.y-100, 110, 100);
-    addPedinte(&cenarios[0], 9*w/5, chaoR.y-100, 110, 100);
+    addPedinte(&cenarios[0], 7*w/5, chaoR.y-100, 110, 100);
 
     // render inicial + fade in
     SDL_RenderClear(ren);
@@ -501,6 +501,9 @@ int main(int argc, char* args[]) {
     SDL_Renderer* ren = SDL_CreateRenderer(win, -1, 0);
 
     Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048);
+    
+    SDL_Surface* cursorSurface = IMG_Load("./src/menu/cursor.png");
+    SDL_Cursor* cursorMenu = NULL;
 
     SDL_Texture* fundo      = IMG_LoadTexture(ren, "./src/menu/bg-menu.png");
     SDL_Texture* logo       = IMG_LoadTexture(ren, "./src/menu/pp-logo.png");
@@ -542,6 +545,10 @@ int main(int argc, char* args[]) {
     if (!musica) {
         printf("Erro ao carregar música: %s\n", Mix_GetError());
     }
+    
+    cursorMenu = SDL_CreateColorCursor(cursorSurface, 0, 0);
+    SDL_SetCursor(cursorMenu);
+    SDL_FreeSurface(cursorSurface);
 
 	Mix_PlayMusic(musica, -1);
     while (rodando && !SDL_QuitRequested()) {
@@ -552,6 +559,7 @@ int main(int argc, char* args[]) {
         SDL_RenderCopy(ren, continuar ,&c, &continuarJ);
         SDL_RenderCopy(ren, sair ,&s, &sairJ);
         SDL_RenderPresent(ren);
+        
 
         SDL_Event evt;
         int isevt = SDL_WaitEventTimeout(&evt, espera);
@@ -607,7 +615,10 @@ int main(int argc, char* args[]) {
                 case SDL_MOUSEBUTTONDOWN:
                     if (evt.button.button == SDL_BUTTON_LEFT) {
                         if (selecionadoN == 1) {
+                            SDL_ShowCursor(SDL_DISABLE);   
                             runGame(win, ren);
+                            SDL_ShowCursor(SDL_ENABLE);   
+                            SDL_SetCursor(cursorMenu);
                         } else if (selecionadoC == 1) {
                             // continuar jogo (não implementado)
                         } else if (selecionadoS == 1) {
@@ -628,5 +639,6 @@ int main(int argc, char* args[]) {
     SDL_DestroyTexture(fundo);
     SDL_DestroyRenderer(ren);
     SDL_DestroyWindow(win);
+    SDL_FreeCursor(cursorMenu);
     SDL_Quit();
 }
