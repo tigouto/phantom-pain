@@ -94,7 +94,7 @@ void runGame(SDL_Window* win, SDL_Renderer* ren){
     // texturas acampamento
 	SDL_Texture* fundo_acampamento = IMG_LoadTexture(ren, "./src/mapa/acampamento/fundo-acampamento.png");
 	SDL_Texture* frente_acampamento = IMG_LoadTexture(ren, "./src/mapa/acampamento/frente-acampamento.png");
-	SDL_Texture* mesa_acampamento = IMG_LoadTexture(ren, "./src/mapa/acampamento/mesa-acampamento.png");
+	SDL_Texture* texMesa = IMG_LoadTexture(ren, "./src/mapa/acampamento/mesa-acampamento.png");
 
     // --- Preparar cenários (igual ao seu original) ---
     Cenario cenarios[MAX_CENARIOS];
@@ -163,9 +163,7 @@ void runGame(SDL_Window* win, SDL_Renderer* ren){
 	
 	// camadas "atrás" do player
 	addAtras(&cenarios[2], fundo_acampamento, (SDL_Rect){0, 0, w, h});
-	addAtras(&cenarios[2], mesa_acampamento,(SDL_Rect){ w/2 - 150, h - 350, 300, 300 });
 	addFrente(&cenarios[2], frente_acampamento, (SDL_Rect){0, 0, w, h});
-	
 	totalCenarios++;
 
 
@@ -217,11 +215,19 @@ void runGame(SDL_Window* win, SDL_Renderer* ren){
 		520, // largura
 		270  // altura
 	);
-
+	
+	addMesaElemento(
+		&cenarios[2],
+		texMesa,
+		(SDL_Rect){ w/2.8 , h-(ponteR.y+ponteR.h)/15-203, 200, 200 },
+		2,
+		270,
+		280
+	);
 
 	// NPCs
     addPedinte(&cenarios[0], 3*w/5, chaoR.y-100, 110, 100);
-    addPedinte(&cenarios[0], 10*w/5, chaoR.y-100, 110, 100);
+    addPedinte(&cenarios[0], 9*w/5, chaoR.y-100, 110, 100);
 
     // render inicial + fade in
     SDL_RenderClear(ren);
@@ -277,13 +283,41 @@ void runGame(SDL_Window* win, SDL_Renderer* ren){
 			}
 			
 			if (atual == 2) {
-			    SDL_Rect hitboxGradeGlobal2 = hitboxGradeLocal;
-			    hitboxGradeGlobal2.x = cenarios[2].posX + w/3.5; // <-- deslocamento correto
+			    // largura das barreiras (ajuste se quiser)
+			    int larguraBarreira = w / 20; // ~5% da largura da tela (ex.: 1920 -> 96px)
+			    int alturaBarreira  = h;      // ocupa a altura inteira
 			
-			    ImpedirPassar(&player, hitboxGradeGlobal2);
-
+			    // barreira que já existe (impede ir para a esquerda) - mantemos na mesma posição usada antes
+			    SDL_Rect barreiraEsq = {
+			        cenarios[2].posX + w/3.5, // x global (mesma lógica que você usava)
+			        0,
+			        larguraBarreira,
+			        alturaBarreira
+			    };
+			
+			    // barreira direita (impede ir para a direita)
+			    // colocamos a barreira perto da borda direita do cenário 2
+			    SDL_Rect barreiraDir = {
+			        // posX do cenário + largura do cenário - offset - largura da barreira
+			        cenarios[2].posX + cenarios[2].largura - (w/3.5) - 0.5*larguraBarreira,
+			        0,
+			        larguraBarreira,
+			        alturaBarreira
+			    };
+			
+			    // aplica as duas barreiras
+			    ImpedirPassar(&player, barreiraEsq); // bloqueia movimento para a esquerda quando colide por esse lado
+			    //ImpedirPassar(&player, barreiraDir);
+			    if (player.pos.x + player.pos.w > barreiraDir.x) {
+				
+				    // Volta para o cenário 0
+				    fade_out_in(ren,w,h,1);
+				    atual = 0;
+				    player.pos.x = cenarios[atual].posX + 2700, h-(ponteR.y+ponteR.h)/15-273 ;
+					fade_out_in(ren,w,h,0);
+					dentro = 0;
+				}
 			}
-
 
             // Atualiza pedintes
             for (int i = 0; i < cenarios[atual].numPedintes; i++){
@@ -293,36 +327,39 @@ void runGame(SDL_Window* win, SDL_Renderer* ren){
 		    // Atualiza checkpoints
 		    float deltaTime = 16.0f; // o tempo decorrido entre frames
 
-	    updateElementos(&cenarios[atual], player.pos, keys, deltaTime, &vida.vidas, &atual, &dentro, w);
+	    	updateElementos(&cenarios[atual], player.pos, keys, deltaTime, &vida.vidas, &atual, &dentro, w);
+	    	
             if(atual == 2 && !dentro){
                 fade_out_in(ren,w,h,1);
-                player.pos.x = cenarios[atual].posX + w*2/3 - 20;
+                player.pos.x = cenarios[atual].posX + w*3/5;
                 fade_out_in(ren,w,h,0);
                 dentro = 1;
             }
- if(!dentro){
+            
+            
+			if(!dentro){
             // transições de cenario
-            if (player.pos.x > cenarios[atual].posX + cenarios[atual].largura && (atual + 1) < totalCenarios) {
-                fade_out_in(ren, w, h, 1);
-                atual++;
-                player.pos.x = cenarios[atual].posX;
-                camera.x = 0;
-                camera.y = 0;
-                if (camera.x < cenarios[atual].posX) camera.x = cenarios[atual].posX;
-                if (camera.x > cenarios[atual].posX + cenarios[atual].largura - w)
-                    camera.x = cenarios[atual].posX + cenarios[atual].largura - w;
-                fade_out_in(ren, w, h, 0);
-            }
-            if (player.pos.x + player.pos.w < cenarios[atual].posX) {
-                fade_out_in(ren, w, h, 1);
-                atual--;
-                player.pos.x = cenarios[atual].posX + cenarios[atual].largura - 120;
-                camera.x = player.pos.x + player.pos.w / 2 - w / 2;
-                if (camera.x < cenarios[atual].posX) camera.x = cenarios[atual].posX;
-                if (camera.x > cenarios[atual].posX + cenarios[atual].largura - w)
-                    camera.x = cenarios[atual].posX + cenarios[atual].largura - w;
-                fade_out_in(ren, w, h, 0);
-            }
+	            if (player.pos.x > cenarios[atual].posX + cenarios[atual].largura && (atual + 1) < totalCenarios) {
+	                fade_out_in(ren, w, h, 1);
+	                atual++;
+	                player.pos.x = cenarios[atual].posX;
+	                camera.x = 0;
+	                camera.y = 0;
+	                if (camera.x < cenarios[atual].posX) camera.x = cenarios[atual].posX;
+	                if (camera.x > cenarios[atual].posX + cenarios[atual].largura - w)
+	                    camera.x = cenarios[atual].posX + cenarios[atual].largura - w;
+	                fade_out_in(ren, w, h, 0);
+	            }
+	            if (player.pos.x + player.pos.w < cenarios[atual].posX) {
+	                fade_out_in(ren, w, h, 1);
+	                atual--;
+	                player.pos.x = cenarios[atual].posX + cenarios[atual].largura - 120;
+	                camera.x = player.pos.x + player.pos.w / 2 - w / 2;
+	                if (camera.x < cenarios[atual].posX) camera.x = cenarios[atual].posX;
+	                if (camera.x > cenarios[atual].posX + cenarios[atual].largura - w)
+	                    camera.x = cenarios[atual].posX + cenarios[atual].largura - w;
+	                fade_out_in(ren, w, h, 0);
+	            }
             }
 
             // Invulnerabilidade timeout
@@ -335,8 +372,6 @@ void runGame(SDL_Window* win, SDL_Renderer* ren){
             if (camera.x < cenarios[atual].posX) camera.x = cenarios[atual].posX;
             if (camera.x > cenarios[atual].posX + cenarios[atual].largura - w)
                 camera.x = cenarios[atual].posX + cenarios[atual].largura - w;
-            
-         
         }
         
         if (portaDescendo) {
@@ -353,10 +388,6 @@ void runGame(SDL_Window* win, SDL_Renderer* ren){
 		    cenarios[1].frente[0].pos.y = (int)portaY;  
 		}
 		
-		
-
-        
-
         // --- RENDER ---
         SDL_RenderClear(ren);
         desenharCenario(ren, &cenarios[atual], camera, w, h,w,h);
@@ -379,6 +410,7 @@ void runGame(SDL_Window* win, SDL_Renderer* ren){
 
         // desenha frente cenário
         desenharFrente(ren, &cenarios[atual], camera);
+        
 
         // HUD: desenha hud base
         SDL_RenderCopy(ren, hud, NULL, &vida.vidaRect);
@@ -453,6 +485,7 @@ void runGame(SDL_Window* win, SDL_Renderer* ren){
     SDL_DestroyTexture(texFlor);
     SDL_DestroyTexture(texCheckpoint);
     SDL_DestroyTexture(texAcampamento);
+    SDL_DestroyTexture(texMesa);
 
 
     SDL_ShowCursor(SDL_ENABLE);
