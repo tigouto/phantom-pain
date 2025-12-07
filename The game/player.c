@@ -29,6 +29,12 @@ void initPlayer(Player* p, SDL_Renderer* ren, int x, int y, int w, int h) {
     p->totalFramesAtaqueTronco = 6;
     p->totalFramesAtaqueFoice = 6;
     p->dano = 1;
+    p->frameDano = 0;
+    p->linhaDano = 0;
+	p->totalFramesDano = 4;
+	p->ultimoFrameDano = 0;
+	p->intervaloFrameDano = 80;  // tempo entre frames de dano
+
 
     p->pulando = 0;
 	p->puloInicial = -18;
@@ -42,8 +48,46 @@ void initPlayer(Player* p, SDL_Renderer* ren, int x, int y, int w, int h) {
 void updatePlayer(Player* p, const Uint8* keys, Uint32 agora, SDL_Rect chaoR, hudVida* vida, Cenario* cenarios, int atual, SDL_Rect* camera, SDL_Renderer* ren, int w){
 	int framesFoiceCausaDano[6] = {0, 0, 0, 1, 1, 0};
 
+	// ---------------------- KNOCKBACK DO PLAYER -------------------------
+	if (p->sofrendoDano) {
+	
+	    // movimento de knockback
+	    p->pos.x += p->velDano;
+	
+	    // atrito (igual pedinte)
+	    if (p->velDano > 0) {
+	        p->velDano -= 0.8f;
+	        if (p->velDano < 0) p->velDano = 0;
+	    } else {
+	        p->velDano += 0.8f;
+	        if (p->velDano > 0) p->velDano = 0;
+	    }
+	
+	    // animação de dano
+	    if (SDL_GetTicks() - p->ultimoFrameDano > p->intervaloFrameDano) {
+	        p->ultimoFrameDano = SDL_GetTicks();
+	        p->frameDano++;
+	
+	        if (p->frameDano >= p->totalFramesDano)
+	            p->frameDano = 0;
+	    }
+	
+	    p->framePernasRect = (SDL_Rect){
+	        230 * p->frameDano,
+	        210 * p->linhaDano,
+	        230, 210
+	    };
+	
+	    // se knockback acabou, sai do estado
+	    if (fabs(p->velDano) <= 0.01f)
+	        p->sofrendoDano = 0;
+	
+	    return; // BLOQUEIA input enquanto toma dano
+	}
+
+
 	if (keys[SDL_SCANCODE_X]) {
-            if (!p->virando && !p->atacando && agora - p->tempoAtaque > p->intervaloEntreAtaques && vida->vidas > 0) {
+            if (!p->virando && !p->atacando && agora - p->tempoAtaque > p->intervaloEntreAtaques) {
                 p->atacando = 1;
                 p->tempoAtaque = agora;
                 p->ultimoFrameAtaque = p->tempoAtaque;
@@ -114,7 +158,7 @@ void updatePlayer(Player* p, const Uint8* keys, Uint32 agora, SDL_Rect chaoR, hu
     		if (framesFoiceCausaDano[p->frameAtaqueTronco] == 1){
     			if(SDL_HasIntersection(&p->hitboxFoice,&pe->pos)){
 				int direcaoHit = (p->pos.x < pe->pos.x) ? 1 : -1;
-                                pedinteTomarDano(pe, direcaoHit);
+                pedinteTomarDano(pe, direcaoHit);
 
     			}
 			}	
@@ -122,9 +166,6 @@ void updatePlayer(Player* p, const Uint8* keys, Uint32 agora, SDL_Rect chaoR, hu
 		
 		SDL_Rect hitScreen = p->frameFoiceRect;
         hitScreen.x -= camera->x;
-        
-        SDL_SetRenderDrawColor(ren, 255, 0, 0, 128);
-        SDL_RenderFillRect(ren, &hitScreen);
     }
     
     if(p->atacando){
@@ -154,8 +195,13 @@ void updatePlayer(Player* p, const Uint8* keys, Uint32 agora, SDL_Rect chaoR, hu
         if (p->dir == DIREITA && p->virando != 1 ) {
             p->virando = 1; p->frameVirada = 0; p->ultimoFrameTroca = agora;
         }
-        if (atual != 0 || p->pos.x > 55 || atual == 2 && p->pos.x > w/3) p->pos.x -= 13;
+        
+        if( atual == 2 && p->pos.x < w/3){
+        
+        }
+        else if (atual == 0 || p->pos.x > 55 || atual == 1) p->pos.x -= 13;
         p->dir = ESQUERDA;
+    
         
         if (p->atacando) {
             if (agora - p->ultimoFrameTroca > p->intervaloFrame) {
@@ -226,7 +272,7 @@ void updatePlayer(Player* p, const Uint8* keys, Uint32 agora, SDL_Rect chaoR, hu
         		return;
 			}
 		}
-        int linhaPulo = (p->dir == DIREITA) ? 4 : 5; 
+        int linhaPulo = (p->dir == DIREITA) ? 4 : 5; // supondo linhas 4/5
         p->framePernasRect = (SDL_Rect){230 * (p->framePulo % p->totalFramesPulo), 210 * linhaPulo, 230, 210};
 	}
 	
@@ -293,6 +339,10 @@ void updatePlayer(Player* p, const Uint8* keys, Uint32 agora, SDL_Rect chaoR, hu
 		    if (pe->dir == DIREITA) pe->velDano = -12;   // empurra para esquerda
 		    else pe->velDano = 12;    // empurra para direita
 	        if (!vida->invulneravel) {
+	        	//Animação do pedinte tomando dano aqui
+	        	int direcao = (p->pos.x < pe->pos.x) ? -1 : 1;  // contrário do pedinte
+    			playerTomarDano(p, direcao, agora);
+	        	
 			    perderFlor(vida, agora);
 			    vida->invulneravel = 1;
 			    vida->tempoInvulneravel = agora;
@@ -300,6 +350,7 @@ void updatePlayer(Player* p, const Uint8* keys, Uint32 agora, SDL_Rect chaoR, hu
 	    }
 	}
 }
+	
 
 void ImpedirPassar(Player* p, SDL_Rect barreira)
 {
@@ -320,6 +371,23 @@ void ImpedirPassar(Player* p, SDL_Rect barreira)
         p->pos.x = barreira.x + barreira.w;
     }
 }
+
+void playerTomarDano(Player* p, int direcao, Uint32 agora)
+{
+    p->sofrendoDano = 1;
+    p->tempoKnockback = agora;
+    
+    p->velDano = direcao * 12;
+
+    // iniciar animação
+    p->frameDano = 0;
+    p->ultimoFrameDano = agora;
+
+    // linha do sprite de dano
+    p->linhaDano = (direcao > 0 ? 13 : 12);  
+}
+
+
 
 
 void renderPlayer(Player* p, SDL_Renderer* ren, SDL_Texture* sprites, SDL_Texture* spritesCorpo, SDL_Texture* spritesFoice,SDL_Rect camera){
