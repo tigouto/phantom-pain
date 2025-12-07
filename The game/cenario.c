@@ -220,6 +220,7 @@ void renderMesa(SDL_Renderer* ren, Mesa* m, SDL_Rect camera) {
     };
     
 	SDL_Rect dest = m->pos;
+	dest.x -= camera.x;
     SDL_RenderCopy(ren, m->tex, &src, &dest);
 }
 
