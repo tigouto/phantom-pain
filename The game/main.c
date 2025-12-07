@@ -216,18 +216,11 @@ void runGame(SDL_Window* win, SDL_Renderer* ren){
 		270  // altura
 	);
 	
-	addMesaElemento(
-		&cenarios[2],
-		texMesa,
-		(SDL_Rect){ 200 , h-(ponteR.y+ponteR.h)/15-203, 200, 200 },
-		2,
-		270,
-		280
-	);
+	addMesaElemento(&cenarios[2],texMesa,(SDL_Rect){cenarios[2].posX + w/2.7, h-(ponteR.y+ponteR.h)/15-203, 200, 200 },2,270,280);
 
 	// NPCs
     addPedinte(&cenarios[0], 3*w/5, chaoR.y-100, 110, 100);
-    addPedinte(&cenarios[0], 7*w/5, chaoR.y-100, 110, 100);
+    addPedinte(&cenarios[0], 9*w/5, chaoR.y-100, 110, 100);
 
     // render inicial + fade in
     SDL_RenderClear(ren);
@@ -559,7 +552,7 @@ int main(int argc, char* args[]) {
         SDL_RenderCopy(ren, continuar ,&c, &continuarJ);
         SDL_RenderCopy(ren, sair ,&s, &sairJ);
         SDL_RenderPresent(ren);
-        
+
 
         SDL_Event evt;
         int isevt = SDL_WaitEventTimeout(&evt, espera);
@@ -615,9 +608,9 @@ int main(int argc, char* args[]) {
                 case SDL_MOUSEBUTTONDOWN:
                     if (evt.button.button == SDL_BUTTON_LEFT) {
                         if (selecionadoN == 1) {
-                            SDL_ShowCursor(SDL_DISABLE);   
+                        	SDL_ShowCursor(SDL_DISABLE);
                             runGame(win, ren);
-                            SDL_ShowCursor(SDL_ENABLE);   
+                            SDL_ShowCursor(SDL_ENABLE);
                             SDL_SetCursor(cursorMenu);
                         } else if (selecionadoC == 1) {
                             // continuar jogo (não implementado)
