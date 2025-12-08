@@ -10,6 +10,14 @@
 
 /* ----------------- FUNÇÃO PRINCIPAL DO JOGO (runGame) ----------------- */
 
+typedef enum{
+	ESTADO_JOGO,
+	ESTADO_MORTE,
+	ESTADO_PAUSA
+} EstadoGame;
+
+EstadoGame estadoAtual = ESTADO_JOGO;
+
 void renderMenuPause(SDL_Renderer* ren, int w, int h, int opcaoPause, SDL_Texture* menuPauseC, SDL_Texture* contPause, SDL_Texture* sairPause, SDL_Texture* menuPauseB){
     // Fundo escuro
     SDL_SetRenderDrawBlendMode(ren, SDL_BLENDMODE_BLEND);
@@ -50,10 +58,48 @@ void renderMenuPause(SDL_Renderer* ren, int w, int h, int opcaoPause, SDL_Textur
     SDL_RenderCopy(ren, menuPauseB, NULL, &baixo);
 }
 
+void renderMenuMorte(SDL_Renderer* ren, int w, int h, int opcaoPause, SDL_Texture* acordar, SDL_Texture* lembrar, SDL_Texture* fundoMorte, SDL_Texture* tituloMorte){
+    // Fundo escuro
+    SDL_SetRenderDrawBlendMode(ren, SDL_BLENDMODE_BLEND);
+    SDL_SetRenderDrawColor(ren, 0, 0, 0, 160);
+    SDL_Rect tela = {0, 0, w, h};
+    SDL_RenderFillRect(ren, &tela);
+
+    // ----- FLOR DE CIMA -----
+    SDL_Rect topo = { (w-1060*0.8)/2, h/4, 1060*0.8, 250*0.8 };
+    SDL_RenderCopy(ren, tituloMorte, NULL, &topo);
+
+    // ----- BOTÕES -----
+    int btnW = 350, btnH = 80;
+    int startY = topo.y + topo.h + 60;
+
+    SDL_Rect btnLembrar = { (w - 570*0.8)/2, startY, 570*0.8, 80*0.8 };
+    SDL_Rect btnAcordar     = { (w - 540*0.8)/2, startY + btnH + 45, 540*0.8, 80*0.8 };
+
+    SDL_Rect srcSelL = { 570,0,570,80 }; // highlight
+    SDL_Rect srcNL   = {   0,0,570,80 }; // normal
+    SDL_Rect srcSelA = { 540,0,540,80 }; // highlight
+    SDL_Rect srcNA   = {   0,0,540,80 }; // normal
+
+    // Continuar
+    if (opcaoPause == 0)
+        SDL_RenderCopy(ren, lembrar, &srcSelL, &btnLembrar);
+    else
+        SDL_RenderCopy(ren, lembrar, &srcNL, &btnLembrar);
+
+    // Sair
+    if (opcaoPause == 1)
+        SDL_RenderCopy(ren, acordar, &srcSelA, &btnAcordar);
+    else
+        SDL_RenderCopy(ren, acordar, &srcNA, &btnAcordar);
+
+    // ----- FLOR DE BAIXO -----
+    //SDL_Rect baixo = { (w-680*0.8)/2, btnSair.y + btnH + 80, 680*0.8, 170*0.8 };
+    //SDL_RenderCopy(ren, acordar, NULL, &baixo);
+}
 
 void runGame(SDL_Window* win, SDL_Renderer* ren){
 	int dentro = 0;
-	int jogoPausado = 0;
 	int opcaoPause = 0;
 	int podeUsarEsc = 1;
 	
@@ -75,6 +121,12 @@ void runGame(SDL_Window* win, SDL_Renderer* ren){
     SDL_Texture* contPause = IMG_LoadTexture(ren, "./src/menu/pause/continuar-pause.png");
     SDL_Texture* sairPause = IMG_LoadTexture(ren, "./src/menu/pause/sair-pause.png");
     SDL_Texture* menuPauseB = IMG_LoadTexture(ren, "./src/menu/pause/flor-baixo-pause.png");
+    
+    // TEXTURAS MENU MORTE
+	SDL_Texture* acordar = IMG_LoadTexture(ren, "./src/morte/acordar morte.png");
+    SDL_Texture* lembrar = IMG_LoadTexture(ren, "./src/morte/lembrar morte.png");
+    SDL_Texture* fundoMorte = IMG_LoadTexture(ren, "./src/morte/ss fundo morte.png");
+    SDL_Texture* tituloMorte = IMG_LoadTexture(ren, "./src/morte/titulo morte.png");
 
     // Texturas de cenário
     SDL_Texture* fundo_tex  = IMG_LoadTexture(ren, "./src/mapa/ponte-f/bg+lua.png");
@@ -245,11 +297,11 @@ void runGame(SDL_Window* win, SDL_Renderer* ren){
 		    podeUsarEsc = 1;
 		}
 
-        if (!jogoPausado){
+        if (estadoAtual == ESTADO_JOGO){
         	
         	if (isevt && evt.type == SDL_KEYDOWN && evt.key.keysym.scancode == SDL_SCANCODE_ESCAPE){
-	            if(!jogoPausado && podeUsarEsc){
-	                jogoPausado = 1;
+	            if(estadoAtual == ESTADO_JOGO && podeUsarEsc){
+	            	estadoAtual = ESTADO_PAUSA;
 	                opcaoPause = 0;
 	                podeUsarEsc = 0;
 	            }
@@ -415,9 +467,48 @@ void runGame(SDL_Window* win, SDL_Renderer* ren){
 		// Atualiza animação da perda da flor
 		updateFlor(&vida, agora);
 		
+		if(vida.vidas == 0){
+			estadoAtual = ESTADO_MORTE;
+		}
+		
 		renderHudFlores(ren, texFlor, vida, w, vida.vidaRect);
 
-        if(jogoPausado){
+		if(estadoAtual == ESTADO_MORTE){
+            renderMenuMorte(
+			    ren, w, h,
+			    opcaoPause,
+			    acordar,
+			    lembrar,
+			    fundoMorte,
+			    tituloMorte
+			);
+        	
+            if (isevt && evt.type == SDL_KEYDOWN) {	
+            	if (podeUsarEsc && evt.key.keysym.scancode == SDL_SCANCODE_ESCAPE) {
+	            	podeUsarEsc = 0;
+	        	}
+            	
+                switch(evt.key.keysym.scancode) {
+                    case SDL_SCANCODE_DOWN:
+                    case SDL_SCANCODE_UP:
+                        if (opcaoPause == 0) {
+                            opcaoPause = 1;
+                        } else if (opcaoPause == 1) {
+                            opcaoPause = 0;
+                        }
+                        break;
+                    
+                    case SDL_SCANCODE_RETURN:
+                    case SDL_SCANCODE_Z:
+                        if(opcaoPause == 1){
+                            return;
+                        }
+                        break;
+            	}
+	    	}
+        }
+
+        if(estadoAtual == ESTADO_PAUSA){
             renderMenuPause(
 			    ren, w, h,
 			    opcaoPause,
@@ -430,7 +521,7 @@ void runGame(SDL_Window* win, SDL_Renderer* ren){
         
             if (isevt && evt.type == SDL_KEYDOWN) {	
             	if (podeUsarEsc && evt.key.keysym.scancode == SDL_SCANCODE_ESCAPE) {
-	            	jogoPausado = 0;
+	            	estadoAtual = ESTADO_JOGO;
 	            	podeUsarEsc = 0;
 	        	}
             	
@@ -447,7 +538,7 @@ void runGame(SDL_Window* win, SDL_Renderer* ren){
                     case SDL_SCANCODE_RETURN:
                     case SDL_SCANCODE_Z:
                         if(opcaoPause == 0){
-                            jogoPausado = 0;
+                            estadoAtual = ESTADO_JOGO;
                         } else if(opcaoPause == 1){
                             return;
                         }
@@ -455,11 +546,7 @@ void runGame(SDL_Window* win, SDL_Renderer* ren){
             	}
 	    	}
         }
-        
-
         SDL_RenderPresent(ren);
-
-        
     }
 
     // --- LIMPEZA ---
@@ -484,6 +571,11 @@ void runGame(SDL_Window* win, SDL_Renderer* ren){
     SDL_DestroyTexture(texAcampamento);
     SDL_DestroyTexture(texMesa);
     SDL_DestroyTexture(texDialogo);
+    SDL_DestroyTexture(acordar);
+    SDL_DestroyTexture(lembrar);
+    SDL_DestroyTexture(fundoMorte);
+    SDL_DestroyTexture(tituloMorte);
+    
 
 
     SDL_ShowCursor(SDL_ENABLE);
