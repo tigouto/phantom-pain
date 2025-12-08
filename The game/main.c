@@ -10,6 +10,16 @@
 
 /* ----------------- FUNÇÃO PRINCIPAL DO JOGO (runGame) ----------------- */
 
+// --- ANIMAÇÃO FUNDO MORTE ---
+int fundoMorteFrame = 0;            // frame atual (0..8)
+const int fundoMorteTotal = 9;      // total de frames
+const int fundoMorteCols = 4;       // 4 frames por linha
+const int fundoMorteFrameW = 2310;  // largura de cada frame no sprite sheet
+const int fundoMorteFrameH = 1300;  // altura de cada frame no sprite sheet
+Uint32 fundoMorteLast;
+const Uint32 fundoMorteInterval = 120; // ms entre frames (ajuste para velocidade)
+
+
 typedef enum{
 	ESTADO_JOGO,
 	ESTADO_MORTE,
@@ -467,22 +477,53 @@ void runGame(SDL_Window* win, SDL_Renderer* ren){
 		// Atualiza animação da perda da flor
 		updateFlor(&vida, agora);
 		
-		if(vida.vidas == 0){
-			estadoAtual = ESTADO_MORTE;
-		}
+		        // ... mais acima no loop ...
+        if (vida.vidas == 0) {
+            if (estadoAtual != ESTADO_MORTE) {
+                estadoAtual = ESTADO_MORTE;
+                // reset da animação de morte
+                fundoMorteFrame = 0;
+                fundoMorteLast = SDL_GetTicks();
+            }
+        }
+
 		
 		renderHudFlores(ren, texFlor, vida, w, vida.vidaRect);
 
-		if(estadoAtual == ESTADO_MORTE){
+		if (estadoAtual == ESTADO_MORTE) {
+			
+        	// avanço do frame de fundo morte
+            if ((int)fundoMorteTotal > 0) {
+                if ((int)(SDL_GetTicks() - fundoMorteLast) >= (int)fundoMorteInterval) {
+                    fundoMorteFrame++;
+                    if (fundoMorteFrame >= fundoMorteTotal) fundoMorteFrame = fundoMorteTotal - 1; // loop
+                    fundoMorteLast = SDL_GetTicks();
+                }
+
+                // calcula src rect baseado no índice de frame e nas colunas
+                SDL_Rect srcFm;
+                srcFm.x = (fundoMorteFrame % fundoMorteCols) * fundoMorteFrameW;
+                srcFm.y = (fundoMorteFrame / fundoMorteCols) * fundoMorteFrameH;
+                srcFm.w = fundoMorteFrameW;
+                srcFm.h = fundoMorteFrameH;
+
+                // dest: preencher toda a tela (mantém a proporção esticando)
+                SDL_Rect destFm = {0, 0, w, h};
+
+                // desenha o fundo da tela com o frame atual
+                SDL_RenderCopy(ren, fundoMorte, &srcFm, &destFm);
+            }
+
+            // depois desenha overlay, título e botões
             renderMenuMorte(
-			    ren, w, h,
-			    opcaoPause,
-			    acordar,
-			    lembrar,
-			    fundoMorte,
-			    tituloMorte
-			);
-        	
+                ren, w, h,
+                opcaoPause,
+                acordar,
+                lembrar,
+                fundoMorte,   // continua passando se quiser (não é usado agora)
+                tituloMorte
+            );
+            
             if (isevt && evt.type == SDL_KEYDOWN) {	
             	if (podeUsarEsc && evt.key.keysym.scancode == SDL_SCANCODE_ESCAPE) {
 	            	podeUsarEsc = 0;
@@ -500,13 +541,15 @@ void runGame(SDL_Window* win, SDL_Renderer* ren){
                     
                     case SDL_SCANCODE_RETURN:
                     case SDL_SCANCODE_Z:
-                        if(opcaoPause == 1){
+                        if(opcaoPause == 0){
+                        } else if(opcaoPause == 1){
                             return;
                         }
                         break;
             	}
 	    	}
         }
+
 
         if(estadoAtual == ESTADO_PAUSA){
             renderMenuPause(
