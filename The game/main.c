@@ -95,6 +95,7 @@ void runGame(SDL_Window* win, SDL_Renderer* ren){
 	SDL_Texture* fundo_acampamento = IMG_LoadTexture(ren, "./src/mapa/acampamento/fundo-acampamento.png");
 	SDL_Texture* frente_acampamento = IMG_LoadTexture(ren, "./src/mapa/acampamento/frente-acampamento.png");
 	SDL_Texture* texMesa = IMG_LoadTexture(ren, "./src/mapa/acampamento/mesa-acampamento.png");
+	SDL_Texture* texDialogo = IMG_LoadTexture(ren, "./src/mapa/ss caixa-diálogo.png");
 
     // --- Preparar cenários (igual ao seu original) ---
     Cenario cenarios[MAX_CENARIOS];
@@ -217,7 +218,9 @@ void runGame(SDL_Window* win, SDL_Renderer* ren){
 	);
 	
 	addMesaElemento(&cenarios[2],texMesa,(SDL_Rect){cenarios[2].posX + w/2.7, h-(ponteR.y+ponteR.h)/15-203, 200, 200 },2,270,280);
-
+	
+	addDialogoElemento(&cenarios[2],texDialogo,(SDL_Rect){cenarios[2].posX + w/5,h/30,3*w/5,h/2});
+	
 	// NPCs
     addPedinte(&cenarios[0], 3*w/5, chaoR.y-100, 110, 100);
     addPedinte(&cenarios[0], 9*w/5, chaoR.y-100, 110, 100);
@@ -404,6 +407,7 @@ void runGame(SDL_Window* win, SDL_Renderer* ren){
         // desenha frente cenário
         desenharFrente(ren, &cenarios[atual], camera);
         
+        renderDialogosAcima(ren, &cenarios[atual], camera);
 
         // HUD: desenha hud base
         SDL_RenderCopy(ren, hud, NULL, &vida.vidaRect);
@@ -479,6 +483,7 @@ void runGame(SDL_Window* win, SDL_Renderer* ren){
     SDL_DestroyTexture(texCheckpoint);
     SDL_DestroyTexture(texAcampamento);
     SDL_DestroyTexture(texMesa);
+    SDL_DestroyTexture(texDialogo);
 
 
     SDL_ShowCursor(SDL_ENABLE);
