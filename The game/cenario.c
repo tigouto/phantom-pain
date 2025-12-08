@@ -83,6 +83,27 @@ void addMesaElemento(Cenario* c, SDL_Texture* tex, SDL_Rect pos, int numFrames, 
     }
 }
 
+void addDialogoElemento(Cenario* c, SDL_Texture* tex, SDL_Rect pos) {
+    if (c->numElementos < MAX_ELEMENTOS) {
+        ElementoCenario e;
+        e.tipo = TIPO_ELEMENTO_DIALOGO;
+        e.dialogo = (Dialogo){
+            .tex = tex,
+            .pos = pos,
+            .frameAtual = 0,
+            .linhaAtual = 0,
+            .numFrames = 0,
+            .larguraFrame = 785,
+            .alturaFrame = 335,
+            .ultimoFrame = 0,
+            .intervaloFrame = 120,
+            .ativado = 0
+        };
+        c->elementos[c->numElementos++] = e;
+    }
+}
+
+
 void desenharCenario(SDL_Renderer* ren, Cenario* c, SDL_Rect camera, int screenW, int screenH,int w,int h) {
     if (!c) return;
 
@@ -154,6 +175,8 @@ void fade_out_in(SDL_Renderer* ren, int screenW, int screenH, int fadeOut) {
     }
 }
 
+
+
 void updateCheckpoint(Checkpoint* cp, SDL_Rect player, float deltaTime) {
     // Atualiza estado de ativação
     if (!cp->ativado && SDL_HasIntersection(&player, &cp->pos)) {
@@ -198,6 +221,60 @@ void updateAcampamento(Acampamento* ac, SDL_Rect player){
 	}
 }
 
+void animarDialogo(Dialogo* dl){
+    if (!dl->ativado) return;
+
+    Uint32 agora = SDL_GetTicks();
+
+    // Atualiza src
+    dl->src = (SDL_Rect){
+        dl->frameAtual * dl->larguraFrame,
+        dl->linhaAtual * dl->alturaFrame,
+        dl->larguraFrame,
+        dl->alturaFrame
+    };
+
+    // Controle de tempo
+    if (agora - dl->ultimoFrame < dl->intervaloFrame)
+        return;
+
+    dl->ultimoFrame = agora;
+
+    // Se já está no último frame da última linha → NÃO anima mais
+    if (dl->linhaAtual == 1 && dl->frameAtual == 5) {  
+        return; // <-- animação finalizada
+    }
+
+    dl->frameAtual++;
+
+    // Linha 0 tem 5 frames
+    if (dl->linhaAtual == 0){
+        if (dl->frameAtual >= 5){
+            dl->linhaAtual = 1;
+            dl->frameAtual = 0;
+        }
+        return;
+    }
+
+    // Linha 1 tem 6 frames
+    if (dl->linhaAtual == 1){
+        if (dl->frameAtual >= 6){
+            dl->frameAtual = 5;  // trava no último frame
+        }
+    }
+}
+
+
+void renderDialogo(SDL_Renderer* ren, Dialogo* dl, SDL_Rect camera){
+    if (!dl->ativado) return;
+
+    SDL_Rect dest = dl->pos;
+    dest.x -= camera.x;
+
+    SDL_RenderCopy(ren, dl->tex, &dl->src, &dest);
+}
+
+
 void renderAcampamento(SDL_Renderer* ren, Acampamento* ac, SDL_Rect camera) {
     SDL_Rect src = {
         ac->frameAtual * ac->larguraFrame,
@@ -224,6 +301,14 @@ void renderMesa(SDL_Renderer* ren, Mesa* m, SDL_Rect camera) {
     SDL_RenderCopy(ren, m->tex, &src, &dest);
 }
 
+void renderDialogosAcima(SDL_Renderer* ren, Cenario* c, SDL_Rect camera) {
+    for (int i = 0; i < c->numElementos; i++) {
+        if (c->elementos[i].tipo == TIPO_ELEMENTO_DIALOGO) {
+            renderDialogo(ren, &c->elementos[i].dialogo, camera);
+        }
+    }
+}
+
 void updateElementos(Cenario* c, SDL_Rect player, const Uint8* keys, float deltaTime, int* vidas, int* atual, int* dentro, int w) {
 
 	for (int i = 0; i < c->numElementos; i++) {
@@ -235,7 +320,7 @@ void updateElementos(Cenario* c, SDL_Rect player, const Uint8* keys, float delta
             case TIPO_ELEMENTO_ACAMPAMENTO:
             	e->acampamento.frameAtual = SDL_HasIntersection(&player, &e->acampamento.pos) ? 1 : 0;
             	
-                if (e->acampamento.frameAtual == 1 && keys[SDL_SCANCODE_C]) {
+                if (e->acampamento.frameAtual == 1 && keys[SDL_SCANCODE_UP]) {
                     e->acampamento.interagindo = 1;
                     
                     *atual = 2;
@@ -244,8 +329,52 @@ void updateElementos(Cenario* c, SDL_Rect player, const Uint8* keys, float delta
                 }
                 break;
             case TIPO_ELEMENTO_MESA:
-            	e->mesa.frameAtual = SDL_HasIntersection(&player, &e->mesa.pos) ? 1 : 0;
-            	break;
+			    int tocando = SDL_HasIntersection(&player, &e->mesa.pos);
+			
+			    // controla sprite da mesa
+			    e->mesa.frameAtual = tocando ? 1 : 0;
+			
+			    // procura o diálogo associado
+			    Dialogo* dl = NULL;
+			    for (int j = 0; j < c->numElementos; j++) {
+			        if (c->elementos[j].tipo == TIPO_ELEMENTO_DIALOGO) {
+			            dl = &c->elementos[j].dialogo;
+			            break;
+			        }
+			    }
+			
+			    if (!dl) break;
+			
+			    // se apertou UP enquanto encostado na mesa
+			    static int podePressionar = 1;
+			    int up = keys[SDL_SCANCODE_UP];
+			
+			    if (!up) {
+			        podePressionar = 1;  // libera para próxima leitura
+			    }
+			
+			    if (tocando && up && podePressionar) {
+			        podePressionar = 0;
+			
+			        if (!dl->ativado) {
+			            // ativa diálogo
+			            dl->ativado = 1;
+			            dl->linhaAtual = 0;
+			            dl->frameAtual = 0;
+			            dl->ultimoFrame = SDL_GetTicks();
+			        } else {
+			            // desativa diálogo
+			            dl->ativado = 0;
+			        }
+			    }
+			
+			    // se sair da área da mesa → esconde o diálogo
+			    if (!tocando)
+			        dl->ativado = 0;
+			break;
+
+            case TIPO_ELEMENTO_DIALOGO:
+            	animarDialogo(&e->dialogo);
             default:
                 break;
         }
@@ -269,6 +398,8 @@ void renderElementos(SDL_Renderer* ren, Cenario* c, SDL_Rect camera) {
         }
     }
 }
+
+
 
 void perderFlor(hudVida* hud, Uint32 agora) {
     if (hud->vidas <= 0 || hud->florAnimando != -1) return;
