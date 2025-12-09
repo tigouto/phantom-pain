@@ -98,6 +98,7 @@ void renderMenuMorte(SDL_Renderer* ren, int w, int h, int opcaoPause, SDL_Textur
     // Sair
     if (opcaoPause == 1)
         SDL_RenderCopy(ren, acordar, &srcSelA, &btnAcordar);
+
     else
         SDL_RenderCopy(ren, acordar, &srcNA, &btnAcordar);
 
@@ -541,6 +542,8 @@ void runGame(SDL_Window* win, SDL_Renderer* ren){
                     case SDL_SCANCODE_Z:
                         if(opcaoPause == 0){
                         } else if(opcaoPause == 1){
+                            estadoAtual = ESTADO_JOGO;
+                            runGame(win,ren);
                             return;
                         }
                         break;
@@ -581,6 +584,7 @@ void runGame(SDL_Window* win, SDL_Renderer* ren){
                         if(opcaoPause == 0){
                             estadoAtual = ESTADO_JOGO;
                         } else if(opcaoPause == 1){
+                            estadoAtual = ESTADO_JOGO;
                             return;
                         }
                         break;
