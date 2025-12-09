@@ -14,8 +14,8 @@
 int fundoMorteFrame = 0;            // frame atual (0..8)
 const int fundoMorteTotal = 9;      // total de frames
 const int fundoMorteCols = 4;       // 4 frames por linha
-const int fundoMorteFrameW = 2310;  // largura de cada frame no sprite sheet
-const int fundoMorteFrameH = 1300;  // altura de cada frame no sprite sheet
+const int fundoMorteFrameW = 1155;  // largura de cada frame no sprite sheet
+const int fundoMorteFrameH = 650;  // altura de cada frame no sprite sheet
 Uint32 fundoMorteLast;
 const Uint32 fundoMorteInterval = 120; // ms entre frames (ajuste para velocidade)
 
@@ -70,8 +70,6 @@ void renderMenuPause(SDL_Renderer* ren, int w, int h, int opcaoPause, SDL_Textur
 
 void renderMenuMorte(SDL_Renderer* ren, int w, int h, int opcaoPause, SDL_Texture* acordar, SDL_Texture* lembrar, SDL_Texture* fundoMorte, SDL_Texture* tituloMorte){
     // Fundo escuro
-    SDL_SetRenderDrawBlendMode(ren, SDL_BLENDMODE_BLEND);
-    SDL_SetRenderDrawColor(ren, 0, 0, 0, 160);
     SDL_Rect tela = {0, 0, w, h};
     SDL_RenderFillRect(ren, &tela);
 
