@@ -1,4 +1,5 @@
 #include "cenario.h"
+#include <SDL2/SDL_ttf.h>
 
 void initCenario(Cenario* c) {
     c->fundo = NULL;
@@ -83,7 +84,7 @@ void addMesaElemento(Cenario* c, SDL_Texture* tex, SDL_Rect pos, int numFrames, 
     }
 }
 
-void addDialogoElemento(Cenario* c, SDL_Texture* tex, SDL_Rect pos) {
+void addDialogoElemento(Cenario* c, SDL_Texture* tex, SDL_Rect pos, const char* texto) {
     if (c->numElementos < MAX_ELEMENTOS) {
         ElementoCenario e;
         e.tipo = TIPO_ELEMENTO_DIALOGO;
@@ -97,7 +98,8 @@ void addDialogoElemento(Cenario* c, SDL_Texture* tex, SDL_Rect pos) {
             .alturaFrame = 335,
             .ultimoFrame = 0,
             .intervaloFrame = 120,
-            .ativado = 0
+            .ativado = 0,
+            .texto = texto
         };
         c->elementos[c->numElementos++] = e;
     }
@@ -265,14 +267,26 @@ void animarDialogo(Dialogo* dl){
 }
 
 
-void renderDialogo(SDL_Renderer* ren, Dialogo* dl, SDL_Rect camera){
+void renderDialogo(SDL_Renderer* ren, Dialogo* dl, SDL_Rect camera, TTF_Font* fonte){
+	
     if (!dl->ativado) return;
+    
+	//printf("[DBG] renderDialogo: ativado=%d texto=%p\n", dl->ativado, (void*)dl->texto);
+	//if (dl->texto) printf("[DBG]   texto first 30 chars: %.30s\n", dl->texto);
 
     SDL_Rect dest = dl->pos;
     dest.x -= camera.x;
 
+    // Desenha a caixa
     SDL_RenderCopy(ren, dl->tex, &dl->src, &dest);
+
+    // Desenha o texto por cima da caixa
+    SDL_Rect caixaCorrigida = dl->pos;
+	caixaCorrigida.x -= camera.x;  // mesma posição usada para desenhar a caixa
+
+	renderTextoDialogo(ren, fonte, dl->texto, caixaCorrigida, camera);
 }
+
 
 
 void renderAcampamento(SDL_Renderer* ren, Acampamento* ac, SDL_Rect camera) {
@@ -301,10 +315,10 @@ void renderMesa(SDL_Renderer* ren, Mesa* m, SDL_Rect camera) {
     SDL_RenderCopy(ren, m->tex, &src, &dest);
 }
 
-void renderDialogosAcima(SDL_Renderer* ren, Cenario* c, SDL_Rect camera) {
+void renderDialogosAcima(SDL_Renderer* ren, Cenario* c, SDL_Rect camera, TTF_Font* fonte) {
     for (int i = 0; i < c->numElementos; i++) {
         if (c->elementos[i].tipo == TIPO_ELEMENTO_DIALOGO) {
-            renderDialogo(ren, &c->elementos[i].dialogo, camera);
+            renderDialogo(ren, &c->elementos[i].dialogo, camera, fonte);
         }
     }
 }
@@ -323,7 +337,7 @@ void updateElementos(Cenario* c, SDL_Rect player, const Uint8* keys, float delta
                 if (e->acampamento.frameAtual == 1 && keys[SDL_SCANCODE_UP]) {
                     e->acampamento.interagindo = 1;
                     
-                    *atual = 2;
+                    *atual = 3;
                 } else {
                     e->acampamento.interagindo = 0;
                 }
@@ -440,3 +454,31 @@ void renderHudFlores(SDL_Renderer* ren, SDL_Texture* texFlor, hudVida hud, int w
         SDL_RenderCopy(ren, texFlor, &frame, &florPos);
     }
 }
+
+void renderTextoDialogo(SDL_Renderer* ren, TTF_Font* fonte, const char* texto, SDL_Rect caixa, SDL_Rect camera) {
+	
+    SDL_Color cor = {255, 255, 255, 255};
+
+	SDL_Surface* surf = TTF_RenderUTF8_Blended_Wrapped(fonte, texto, cor, caixa.w - 40);
+	if (!surf) { printf("[DBG] TTF_Render error: %s\n", TTF_GetError()); return; }
+	//printf("[DBG] surf->w=%d h=%d\n", surf->w, surf->h);
+
+    SDL_Texture* tex = SDL_CreateTextureFromSurface(ren, surf);
+	if (!fonte) { printf("[DBG] fonte NULL\n"); return; }
+	if (!texto) { printf("[DBG] texto NULL\n"); return; }
+	//printf("[DBG] renderTextoDialogo: caixa=(%d,%d,%d,%d) camera=(%d,%d)\n", caixa.x, caixa.y, caixa.w, caixa.h, camera.x, camera.y);
+	
+	SDL_Rect dest = {
+	    caixa.x + 20,
+	    caixa.y + 40,
+	    surf->w,
+	    surf->h
+	};
+
+
+    SDL_RenderCopy(ren, tex, NULL, &dest);
+
+    SDL_FreeSurface(surf);
+    SDL_DestroyTexture(tex);
+}
+
