@@ -1,6 +1,7 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
 #include <SDL2/SDL_mixer.h>
+#include <SDL2/SDL_ttf.h>
 #include <assert.h>
 #include <stdio.h>
 #include <math.h>
@@ -110,6 +111,17 @@ void renderMenuMorte(SDL_Renderer* ren, int w, int h, int opcaoPause, SDL_Textur
 enum Mapa{FUTURO = 0, PASSADO = 1};
 
 void runGame(SDL_Window* win, SDL_Renderer* ren, enum Mapa mapa){
+	Mix_Music* musica = Mix_LoadMUS("./src/msc/pontef.ogg");
+	Mix_Music* musicaM = Mix_LoadMUS("./src/msc/Morte.mp3");
+    Mix_Music* musicaB = Mix_LoadMUS("./src/msc/bossfight.mp3");
+    int musicaMorte = 0;
+	
+	TTF_Init();
+	TTF_Font* fonteDialogo = TTF_OpenFont("./src/fonte/minhafonte.ttf", 24);
+	if (!fonteDialogo) {
+	    printf("Erro carregando fonte: %s\n", TTF_GetError());
+	}
+
 	int dentro = 0;
 	int opcaoPause = 0;
 	int podeUsarEsc = 1;
@@ -120,10 +132,7 @@ void runGame(SDL_Window* win, SDL_Renderer* ren, enum Mapa mapa){
 	SDL_Rect camera = {0,0,w,h};
 	int atual = 0;
     // --- Texturas básicas (sprites, HUD, pedinte, flor) ---
-    SDL_Texture* sprites = IMG_LoadTexture(ren, "./src/entidades/ss reaper.png");
-    SDL_Texture* spritesCorpo = IMG_LoadTexture(ren,"./src/entidades/ss reaper ataque.png");
-    SDL_Texture* spritesFoice = IMG_LoadTexture(ren,"./src/entidades/ss lamina.png");
-    SDL_Texture* texPedinte = IMG_LoadTexture(ren, "./src/entidades/ss pedinte.png");
+
     // TEXTURAS MENU PAUSE
     SDL_Texture* menuPauseC = IMG_LoadTexture(ren, "./src/menu/pause/flor-cima-pause.png");
     SDL_Texture* contPause = IMG_LoadTexture(ren, "./src/menu/pause/continuar-pause.png");
@@ -133,9 +142,17 @@ void runGame(SDL_Window* win, SDL_Renderer* ren, enum Mapa mapa){
 	SDL_Texture* acordar = IMG_LoadTexture(ren, "./src/morte/acordar morte.png");
     SDL_Texture* lembrar = IMG_LoadTexture(ren, "./src/morte/lembrar morte.png");
     SDL_Texture* fundoMorte = IMG_LoadTexture(ren, "./src/morte/ss fundo morte.png");
-    SDL_Texture* tituloMorte = IMG_LoadTexture(ren, "./src/morte/titulo morte.png");    
+    SDL_Texture* tituloMorte = IMG_LoadTexture(ren, "./src/morte/titulo morte.png"); 
+    
+    SDL_Texture* fim = IMG_LoadTexture(ren, "./src/menu/fim.png");
+	   
     //textura Boss
-	SDL_Texture* texBoss = IMG_LoadTexture(ren,"./src/entidades/ss chefao.png");
+	SDL_Texture* texBoss = NULL;
+    SDL_Texture* sprites = NULL;
+    SDL_Texture* spritesCorpo = NULL;
+    SDL_Texture* spritesFoice = NULL;
+    SDL_Texture* texPedinte = NULL;
+	
     
 	SDL_Texture* texFlor = NULL;
 	SDL_Texture* hud =  NULL;
@@ -161,52 +178,64 @@ void runGame(SDL_Window* win, SDL_Renderer* ren, enum Mapa mapa){
 	SDL_Texture* texDialogo = NULL;
 
     if(mapa == FUTURO){
-    	texFlor = IMG_LoadTexture(ren, "./src/mapa/futuro/ss flor.png"); // novo
-		hud = IMG_LoadTexture(ren, "./src/mapa/futuro/hud.png");
+    	texBoss = IMG_LoadTexture(ren,"./src/s-futuro/entidades/ss chefao.png");
+	    sprites = IMG_LoadTexture(ren, "./src/s-futuro/entidades/ss reaper.png");
+	    spritesCorpo = IMG_LoadTexture(ren,"./src/s-futuro/entidades/ss reaper ataque.png");
+	    spritesFoice = IMG_LoadTexture(ren,"./src/s-futuro/entidades/ss lamina.png");
+	    texPedinte = IMG_LoadTexture(ren, "./src/s-futuro/entidades/ss pedinte.png");
+    	
+    	texFlor = IMG_LoadTexture(ren, "./src/s-futuro/mapa/ss flor.png"); // novo
+		hud = IMG_LoadTexture(ren, "./src/s-futuro/mapa/hud.png");
 	    // Texturas de cenário
-	    fundo_tex  = IMG_LoadTexture(ren, "./src/mapa/futuro/ponte-f/bg+lua.png");
-	    parafu_tex = IMG_LoadTexture(ren, "./src/mapa/futuro/ponte-f/paralax fundo.png");
-	    parafr_tex = IMG_LoadTexture(ren, "./src/mapa/futuro/ponte-f/paralax frente.png");
-	    ponte_tex  = IMG_LoadTexture(ren, "./src/mapa/futuro/ponte-f/ponte.png");
-	    portao_tex = IMG_LoadTexture(ren, "./src/mapa/futuro/ponte-f/portão.png");
-	    ponte_prox = IMG_LoadTexture(ren, "./src/mapa/futuro/ponte-f/sala-port.png");
-		texCheckpoint = IMG_LoadTexture(ren, "./src/mapa/futuro/ponte-f/checkpoint.png");
-		texAcampamento = IMG_LoadTexture(ren, "./src/mapa/futuro/ponte-f/acampamento.png");
+	    fundo_tex  = IMG_LoadTexture(ren, "./src/s-futuro/mapa/ponte-f/bg+lua.png");
+	    parafu_tex = IMG_LoadTexture(ren, "./src/s-futuro/mapa/ponte-f/paralax fundo.png");
+	    parafr_tex = IMG_LoadTexture(ren, "./src/s-futuro/mapa/ponte-f/paralax frente.png");
+	    ponte_tex  = IMG_LoadTexture(ren, "./src/s-futuro/mapa/ponte-f/ponte.png");
+	    portao_tex = IMG_LoadTexture(ren, "./src/s-futuro/mapa/ponte-f/portão.png");
+	    ponte_prox = IMG_LoadTexture(ren, "./src/s-futuro/mapa/ponte-f/sala-port.png");
+		texCheckpoint = IMG_LoadTexture(ren, "./src/s-futuro/mapa/ponte-f/checkpoint.png");
+		texAcampamento = IMG_LoadTexture(ren, "./src/s-futuro/mapa/ponte-f/acampamento.png");
 	    // sala textures (exemplo)
-	    fundo_sala = IMG_LoadTexture(ren, "./src/mapa/futuro/sala-p/background.png");
-	    porta_sala = IMG_LoadTexture(ren, "./src/mapa/futuro/sala-p/porta.png");
-	    borda_sala = IMG_LoadTexture(ren, "./src/mapa/futuro/sala-p/borda.png");
-	    atras_sala = IMG_LoadTexture(ren, "./src/mapa/futuro/sala-p/fundo-atras.png");
-	    frente_sala = IMG_LoadTexture(ren, "./src/mapa/futuro/sala-p/fundo-frente.png");
+	    fundo_sala = IMG_LoadTexture(ren, "./src/s-futuro/mapa/sala-p/background.png");
+	    porta_sala = IMG_LoadTexture(ren, "./src/s-futuro/mapa/sala-p/porta.png");
+	    borda_sala = IMG_LoadTexture(ren, "./src/s-futuro/mapa/sala-p/borda.png");
+	    atras_sala = IMG_LoadTexture(ren, "./src/s-futuro/mapa/sala-p/fundo-atras.png");
+	    frente_sala = IMG_LoadTexture(ren, "./src/s-futuro/mapa/sala-p/fundo-frente.png");
 	    // texturas acampamento
-		fundo_acampamento = IMG_LoadTexture(ren, "./src/mapa/futuro/acampamento/fundo-acampamento.png");
-		frente_acampamento = IMG_LoadTexture(ren, "./src/mapa/futuro/acampamento/frente-acampamento.png");
-		texMesa = IMG_LoadTexture(ren, "./src/mapa/acampamento/futuro/mesa-acampamento.png");
-		texDialogo = IMG_LoadTexture(ren, "./src/mapa/futuro/ss caixa-diálogo.png");
+		fundo_acampamento = IMG_LoadTexture(ren, "./src/s-futuro/mapa/acampamento/fundo-acampamento.png");
+		frente_acampamento = IMG_LoadTexture(ren, "./src/s-futuro/mapa/acampamento/frente-acampamento.png");
+		texMesa = IMG_LoadTexture(ren, "./src/s-futuro/mapa/acampamento/mesa-acampamento.png");
+		texDialogo = IMG_LoadTexture(ren, "./src/s-futuro/mapa/ss caixa-diálogo.png");
 	}
 	else if (mapa == PASSADO){
-		texFlor = IMG_LoadTexture(ren, "./src/mapa/passado/ss flor.png"); // novo
-		hud = IMG_LoadTexture(ren, "./src/mapa/passado/hud.png");
+		texBoss = IMG_LoadTexture(ren,"./src/s-passado/entidades/ss chefao.png");
+	    sprites = IMG_LoadTexture(ren, "./src/s-passado/entidades/ss reaper.png");
+	    spritesCorpo = IMG_LoadTexture(ren,"./src/s-passado/entidades/ss reaper ataque.png");
+	    spritesFoice = IMG_LoadTexture(ren,"./src/s-passado/entidades/ss lamina.png");
+	    texPedinte = IMG_LoadTexture(ren, "./src/s-passado/entidades/ss pedinte.png");	
+		
+		texFlor = IMG_LoadTexture(ren, "./src/s-passado/mapa/ss flor.png"); // novo
+		hud = IMG_LoadTexture(ren, "./src/s-passado/mapa/hud.png");
 	    // Texturas de cenário
-	    fundo_tex  = IMG_LoadTexture(ren, "./src/mapa/passado/ponte-f/bg+lua.png");
-	    parafu_tex = IMG_LoadTexture(ren, "./src/mapa/passado/ponte-f/paralax fundo.png");
-	    parafr_tex = IMG_LoadTexture(ren, "./src/mapa/passado/ponte-f/paralax frente.png");
-	    ponte_tex  = IMG_LoadTexture(ren, "./src/mapa/passado/ponte-f/ponte.png");
-	    portao_tex = IMG_LoadTexture(ren, "./src/mapa/passado/ponte-f/portão.png");
-	    ponte_prox = IMG_LoadTexture(ren, "./src/mapa/passado/ponte-f/sala-port.png");
-		texCheckpoint = IMG_LoadTexture(ren, "./src/mapa/passado/ponte-f/checkpoint.png");
-		texAcampamento = IMG_LoadTexture(ren, "./src/mapa/passado/ponte-f/acampamento.png");
+	    fundo_tex  = IMG_LoadTexture(ren, "./src/s-passado/mapa/ponte-f/bg+lua.png");
+	    parafu_tex = IMG_LoadTexture(ren, "./src/s-passado/mapa/ponte-f/paralax fundo.png");
+	    parafr_tex = IMG_LoadTexture(ren, "./src/s-passado/mapa/ponte-f/paralax frente.png");
+	    ponte_tex  = IMG_LoadTexture(ren, "./src/s-passado/mapa/ponte-f/ponte.png");
+	    portao_tex = IMG_LoadTexture(ren, "./src/s-passado/mapa/ponte-f/portão.png");
+	    ponte_prox = IMG_LoadTexture(ren, "./src/s-passado/mapa/ponte-f/sala-port.png");
+		texCheckpoint = IMG_LoadTexture(ren, "./src/s-passado/mapa/ponte-f/checkpoint.png");
+		texAcampamento = IMG_LoadTexture(ren, "./src/s-passado/mapa/ponte-f/acampamento.png");
 	    // sala textures (exemplo)
-	    fundo_sala = IMG_LoadTexture(ren, "./src/mapa/passado/sala-p/background.png");
-	    porta_sala = IMG_LoadTexture(ren, "./src/mapa/passado/sala-p/porta.png");
-	    borda_sala = IMG_LoadTexture(ren, "./src/mapa/passado/sala-p/borda.png");
-	    atras_sala = IMG_LoadTexture(ren, "./src/mapa/passado/sala-p/fundo-atras.png");
-	    frente_sala = IMG_LoadTexture(ren, "./src/mapa/passado/sala-p/fundo-frente.png");
+	    fundo_sala = IMG_LoadTexture(ren, "./src/s-passado/mapa/sala-p/background.png");
+	    porta_sala = IMG_LoadTexture(ren, "./src/s-passado/mapa/sala-p/porta.png");
+	    borda_sala = IMG_LoadTexture(ren, "./src/s-passado/mapa/sala-p/borda.png");
+	    atras_sala = IMG_LoadTexture(ren, "./src/s-passado/mapa/sala-p/fundo-atras.png");
+	    frente_sala = IMG_LoadTexture(ren, "./src/s-passado/mapa/sala-p/fundo-frente.png");
 	    // texturas acampamento
-		fundo_acampamento = IMG_LoadTexture(ren, "./src/mapa/passado/acampamento/fundo-acampamento.png");
-		frente_acampamento = IMG_LoadTexture(ren, "./src/mapa/passado/acampamento/frente-acampamento.png");
-		texMesa = IMG_LoadTexture(ren, "./src/mapa/passado/acampamento/mesa-acampamento.png");
-		texDialogo = IMG_LoadTexture(ren, "./src/mapa/passado/ss caixa-diálogo.png");
+		fundo_acampamento = IMG_LoadTexture(ren, "./src/s-passado/mapa/acampamento/fundo-acampamento.png");
+		frente_acampamento = IMG_LoadTexture(ren, "./src/s-passado/mapa/acampamento/frente-acampamento.png");
+		texMesa = IMG_LoadTexture(ren, "./src/s-passado/mapa/acampamento/mesa-acampamento.png");
+		texDialogo = IMG_LoadTexture(ren, "./src/s-passado/mapa/ss caixa-diálogo.png");
 	}
     
 
@@ -265,20 +294,30 @@ void runGame(SDL_Window* win, SDL_Renderer* ren, enum Mapa mapa){
 
 
 	totalCenarios++;
-	
+
 	initCenario(&cenarios[2]);
-	cenarios[2].fundo = fundo_acampamento;
 	
-	// posição: começa logo após o cenário 1
+	cenarios[2].fundo = fim;
 	cenarios[2].posX = cenarios[1].posX + cenarios[1].largura;
-	
-	// largura: igual à tela (pode alterar se o acampamento for maior)
 	cenarios[2].largura = w;
 	cenarios[2].altura = h;
 	
+	totalCenarios++;
+	
+	
+	initCenario(&cenarios[3]);
+	cenarios[3].fundo = fundo_acampamento;
+	
+	// posição: começa logo após o cenário 1
+	cenarios[3].posX = cenarios[2].posX + cenarios[2].largura;
+	
+	// largura: igual à tela (pode alterar se o acampamento for maior)
+	cenarios[3].largura = w;
+	cenarios[3].altura = h;
+	
 	// camadas "atrás" do player
-	addAtras(&cenarios[2], fundo_acampamento, (SDL_Rect){0, 0, w, h});
-	addFrente(&cenarios[2], frente_acampamento, (SDL_Rect){0, 0, w, h});
+	addAtras(&cenarios[3], fundo_acampamento, (SDL_Rect){0, 0, w, h});
+	addFrente(&cenarios[3], frente_acampamento, (SDL_Rect){0, 0, w, h});
 	totalCenarios++;
 
 
@@ -331,10 +370,10 @@ void runGame(SDL_Window* win, SDL_Renderer* ren, enum Mapa mapa){
 		270  // altura
 	);
 	
-	addMesaElemento(&cenarios[2],texMesa,(SDL_Rect){cenarios[2].posX + w/2.7, h-(ponteR.y+ponteR.h)/15-203, 200, 200 },2,270,280);
+	addMesaElemento(&cenarios[3],texMesa,(SDL_Rect){cenarios[3].posX + w/2.7, h-(ponteR.y+ponteR.h)/15-203, 200, 200 },2,270,280);
 	
-	addDialogoElemento(&cenarios[2],texDialogo,(SDL_Rect){cenarios[2].posX + w/5,h/30,3*w/5,h/2});
-	
+	if (mapa == FUTURO) addDialogoElemento(&cenarios[3],texDialogo,(SDL_Rect){cenarios[3].posX + w/5,h/30,3*w/5,h/2},"Tirou tudo o que nos tinhamos... \n\n O rei...\n\n trara...\n\n a nossa ruina. \n\n\n\n (A pagina esta muito rasgada para entender o restante)");
+	else if (mapa == PASSADO) addDialogoElemento(&cenarios[3],texDialogo,(SDL_Rect){cenarios[3].posX + w/5,h/30,3*w/5,h/2},"Ela tirou tudo o que nos tinhamos.\n\n Mas, Ele, o Rei, trara a gloria ate nos novamente. \n\n O tempo da nossa ruina logo acabara.");
 	// NPCs
     addPedinte(&cenarios[0], 3*w/5, chaoR.y-100, 110, 100);
     addPedinte(&cenarios[0], 9*w/5, chaoR.y-100, 110, 100);
@@ -370,7 +409,7 @@ void runGame(SDL_Window* win, SDL_Renderer* ren, enum Mapa mapa){
 	            }
 	        }
         	
-            updatePlayer(&player, keys, agora, chaoR, &vida, cenarios, atual, &camera, ren,w);
+            updatePlayer(&player, keys, agora, chaoR, &vida, cenarios, atual, &camera, ren,w,&boss);
         	ImpedirPassar(&player, portaR);
 
 			if (atual == 1 && mapa == FUTURO) {
@@ -391,31 +430,56 @@ void runGame(SDL_Window* win, SDL_Renderer* ren, enum Mapa mapa){
 				    portaGlobal.x += cenarios[1].posX;  // converter para coordenada global
 				    ImpedirPassar(&player, portaGlobal);
 				    if(!boss.ativo){
-				    	initBoss(&boss, cenarios[1].posX + 4*w/5,-130,200,260,chaoR.y-260);
+				    	Mix_FadeInMusic(musicaB,-1,2000);
+				    	initBoss(&boss, cenarios[1].posX + 4*w/5,-130,200,260,chaoR.y-260, 10000);
 				    	boss.ativo = 1;
 					}
-				    
 				}
 			}
 			
-			if (atual == 2) {
-			    // largura das barreiras (ajuste se quiser)
-			    int larguraBarreira = w / 20; // ~5% da largura da tela (ex.: 1920 -> 96px)
-			    int alturaBarreira  = h;      // ocupa a altura inteira
+			if (atual == 1 && mapa == PASSADO) {
+			    SDL_Rect hitboxGradeGlobal = hitboxGradeLocal;
+			    hitboxGradeGlobal.x += cenarios[1].posX; // <-- deslocamento correto
 			
-			    // barreira que já existe (impede ir para a esquerda) - mantemos na mesma posição usada antes
+			    //ImpedirPassar(&player, hitboxGradeGlobal);
+			    
+			    int meioCenario = cenarios[1].posX + cenarios[1].largura / 2;
+
+			    if (!portaFechada && !portaDescendo && player.pos.x > meioCenario) {
+			        portaDescendo = 1;   // inicia animação
+			        portaY = portaSalaRect.y;
+			    } 
+			    
+			    if(portaFechada){
+			    	SDL_Rect portaGlobal = cenarios[1].frente[0].pos;
+				    portaGlobal.x += cenarios[1].posX;  // converter para coordenada global
+				    ImpedirPassar(&player, portaGlobal);
+				    if(!boss.ativo){
+				    	Mix_FadeInMusic(musicaB,-1,2000);
+				    	initBoss(&boss, cenarios[1].posX + 4*w/5,chaoR.y-130,100,130,chaoR.y-130, 3);
+				    	boss.ativo = 1;
+					}
+				}
+			}
+			
+			/*if( atual == 1 && mapa == PASSADO){
+				boss.ativo = 0;
+			}*/
+			
+			if (atual == 3) {
+
+			    int larguraBarreira = w / 20; 
+			    int alturaBarreira  = h;
+			
 			    SDL_Rect barreiraEsq = {
-			        cenarios[2].posX + w/3.5, // x global (mesma lógica que você usava)
+			        cenarios[3].posX + w/3.5,
 			        0,
 			        larguraBarreira,
 			        alturaBarreira
 			    };
-			
-			    // barreira direita (impede ir para a direita)
-			    // colocamos a barreira perto da borda direita do cenário 2
+			    
 			    SDL_Rect barreiraDir = {
-			        // posX do cenário + largura do cenário - offset - largura da barreira
-			        cenarios[2].posX + cenarios[2].largura - (w/3.5) - 0.5*larguraBarreira,
+			        cenarios[3].posX + cenarios[3].largura - (w/3.5) - 0.5*larguraBarreira,
 			        0,
 			        larguraBarreira,
 			        alturaBarreira
@@ -423,7 +487,6 @@ void runGame(SDL_Window* win, SDL_Renderer* ren, enum Mapa mapa){
 			
 			    // aplica as duas barreiras
 			    ImpedirPassar(&player, barreiraEsq); // bloqueia movimento para a esquerda quando colide por esse lado
-			    //ImpedirPassar(&player, barreiraDir);
 			    if (player.pos.x + player.pos.w > barreiraDir.x) {
 				
 				    // Volta para o cenário 0
@@ -440,14 +503,14 @@ void runGame(SDL_Window* win, SDL_Renderer* ren, enum Mapa mapa){
             	updatePedinte(&cenarios[atual].pedintes[i], player.pos, agora);
 		    }
 		    
-		    updateBoss(&boss, player.pos, agora);
+		    if(!boss.morto) updateBoss(&boss, player.pos, agora, h);
 		    
 		    // Atualiza checkpoints
 		    float deltaTime = 16.0f; // o tempo decorrido entre frames
 
 	    	updateElementos(&cenarios[atual], player.pos, keys, deltaTime, &vida.vidas, &atual, &dentro, w);
 	    	
-            if(atual == 2 && !dentro){
+            if(atual == 3 && !dentro){
                 fade_out_in(ren,w,h,1);
                 player.pos.x = cenarios[atual].posX + w*3/5;
                 fade_out_in(ren,w,h,0);
@@ -517,24 +580,24 @@ void runGame(SDL_Window* win, SDL_Renderer* ren, enum Mapa mapa){
         }*/
 		
 		renderElementos(ren, &cenarios[atual], camera);
+		
+		
+
 
 		// pedintes
         for (int i = 0; i < cenarios[atual].numPedintes; i++){
         	renderPedinte(ren, texPedinte, &cenarios[atual].pedintes[i], camera);
 		}
 		
-		renderBoss(ren,texBoss,&boss,camera);
-
-        // jogador
-        renderPlayer(&player, ren, sprites, spritesCorpo, spritesFoice, camera);
-
+		if(!boss.morto) renderBoss(ren,texBoss,&boss,camera);
+		
         // desenha frente cenário
         desenharFrente(ren, &cenarios[atual], camera);
-        
-        renderDialogosAcima(ren, &cenarios[atual], camera);
+
+		renderDialogosAcima(ren, &cenarios[atual], camera, fonteDialogo);
 
         // HUD: desenha hud base
-        SDL_RenderCopy(ren, hud, NULL, &vida.vidaRect);
+        if (atual != 2) 
 
 		// Atualiza animação da perda da flor
 		updateFlor(&vida, agora);
@@ -550,9 +613,17 @@ void runGame(SDL_Window* win, SDL_Renderer* ren, enum Mapa mapa){
         }
 
 		
-		renderHudFlores(ren, texFlor, vida, w, vida.vidaRect);
+		if (atual != 2){
+			renderHudFlores(ren, texFlor, vida, w, vida.vidaRect);
+			SDL_RenderCopy(ren, hud, NULL, &vida.vidaRect);
+			renderPlayer(&player, ren, sprites, spritesCorpo, spritesFoice, camera);
+		}
 
 		if (estadoAtual == ESTADO_MORTE) {
+			if (musicaMorte == 0){
+				Mix_FadeInMusic(musicaM, -1,2000);
+				musicaMorte = 1;
+			}
 			
         	// avanço do frame de fundo morte
             if ((int)fundoMorteTotal > 0) {
@@ -577,6 +648,7 @@ void runGame(SDL_Window* win, SDL_Renderer* ren, enum Mapa mapa){
             }
 
             // depois desenha overlay, título e botões
+            
             renderMenuMorte(
                 ren, w, h,
                 opcaoPause,
@@ -604,11 +676,17 @@ void runGame(SDL_Window* win, SDL_Renderer* ren, enum Mapa mapa){
                     case SDL_SCANCODE_RETURN:
                     case SDL_SCANCODE_Z:
                         if(opcaoPause == 0){
+                        	musicaMorte = 0;
+                        	Mix_FadeInMusic(musica, -1,2000);
                         	estadoAtual = ESTADO_JOGO;
+                        	memset(&boss, 0, sizeof(boss));
                             runGame(win,ren, PASSADO);
                             return;
                         } else if(opcaoPause == 1){
+                        	musicaMorte = 0;
+                        	Mix_FadeInMusic(musica, -1,2000);
                             estadoAtual = ESTADO_JOGO;
+                            memset(&boss, 0, sizeof(boss));
                             runGame(win,ren, FUTURO);
                             return;
                         }
@@ -651,6 +729,7 @@ void runGame(SDL_Window* win, SDL_Renderer* ren, enum Mapa mapa){
                             estadoAtual = ESTADO_JOGO;
                         } else if(opcaoPause == 1){
                             estadoAtual = ESTADO_JOGO;
+                            memset(&boss, 0, sizeof(boss)); 
                             return;
                         }
                         break;
@@ -686,7 +765,9 @@ void runGame(SDL_Window* win, SDL_Renderer* ren, enum Mapa mapa){
     SDL_DestroyTexture(lembrar);
     SDL_DestroyTexture(fundoMorte);
     SDL_DestroyTexture(tituloMorte);
-    
+    TTF_CloseFont(fonteDialogo);
+	TTF_Quit();
+
 
 
     SDL_ShowCursor(SDL_ENABLE);
@@ -743,6 +824,7 @@ int main(int argc, char* args[]) {
     int rodando = 1;
 
     Mix_Music* musica = Mix_LoadMUS("./src/msc/pontef.ogg");
+
     if (!musica) {
         printf("Erro ao carregar música: %s\n", Mix_GetError());
     }
@@ -786,7 +868,7 @@ int main(int argc, char* args[]) {
                         case SDL_SCANCODE_RETURN:
                         case SDL_SCANCODE_Z:
                             if(selecionadoN == 1){
-                                runGame(win, ren, FUTURO);
+                                runGame(win, ren, PASSADO);
                             } else if(selecionadoS == 1){
                                 rodando = 0;
                             }
