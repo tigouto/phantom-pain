@@ -2,6 +2,8 @@
 
 <img src="./apresentacao/Menu do jogo.png" alt="texto alternativo" width="1000">
 
+<a href = "https://drive.google.com/file/d/1EkLYLasAFf37L0Afsy5aZc-4anJ4pU-Z/view" target = "_blank" > Vídeo do que sobrou do jogo!</a >
+
 ## Tipo do Projeto
 Um jogo metroidvania soulslike.
 
